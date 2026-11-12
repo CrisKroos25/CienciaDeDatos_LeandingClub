@@ -1,0 +1,216 @@
+---
+title: "Análisis de Riesgo Crediticio - LendingClub"
+author: "Cristian Guzman"
+lang: es
+format:
+  html:
+    toc: true
+    code-fold: true
+    number-sections: false
+  pdf:
+    toc: true
+    number-sections: false
+jupyter: lendingclub-python
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+# Parte D: Entrenamiento y selección de modelos
+
+## D.1 Objetivo y prevención de fuga de información
+
+Se comparan una regresión logística y un Random Forest usando una **validación cronológica dentro del entrenamiento**. El conjunto de prueba permanece reservado para la Parte E. La imputación y la codificación categórica se ajustan dentro de cada pipeline. La transformación logarítmica del ingreso se aplica sin estimar parámetros de los datos.
+
+Se consideran únicamente características plausiblemente disponibles al originar el préstamo. No se utiliza `loan_status` como predictor, pues es la fuente de la etiqueta `incumplimiento`.
+
+## D.2 Librerías y datos
+
+```{python}
+#| label: carga-modelado
+from pathlib import Path
+import json
+import joblib
+import numpy as np
+import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler, FunctionTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import roc_auc_score, average_precision_score, brier_score_loss
+
+ruta = Path("../data/processed/train_raw_split.parquet")
+if not ruta.exists():
+    raise FileNotFoundError("Ejecuta primero 02_limpieza_python.qmd")
+train = pd.read_parquet(ruta).sort_values("fecha_emision")
+print("Entrenamiento:", train.shape)
+
+# La fase 02 convierte DTI negativos a NaN mediante una regla fija,
+# antes de exportar los conjuntos raw_split. El pipeline imputará
+# esos NaN usando únicamente los datos del fit correspondiente.
+assert not (train["dti"].dropna() < 0).any(), (
+    "Se detectaron DTI negativos: vuelve a exportar los Parquet desde la fase 02."
+)
+assert "dti_negativo_original" in train.columns
+```
+
+## D.3 Variables de entrada
+
+`grade`, `sub_grade`, `int_rate` e `installment` son variables derivadas de la evaluación del prestamista. Se conservan para este primer ejercicio, pero el resultado **no equivale a un modelo independiente de las decisiones de LendingClub**. Se recomienda una comparación posterior excluyendo dichas variables.
+
+```{python}
+#| label: definicion-caracteristicas
+numericas = [
+    "loan_amnt", "int_rate", "installment", "dti", "delinq_2yrs",
+    "inq_last_6mths", "open_acc", "pub_rec", "revol_bal", "revol_util",
+    "total_acc", "mort_acc", "pub_rec_bankruptcies", "term_meses",
+    "antiguedad_crediticia_anios", "dti_negativo_original"
+]
+log_numericas = ["annual_inc"]
+categoricas = [
+    "grade", "sub_grade", "emp_length_categoria", "home_ownership",
+    "verification_status", "purpose", "application_type"
+]
+caracteristicas = numericas + log_numericas + categoricas
+faltantes = set(caracteristicas) - set(train.columns)
+assert not faltantes, f"Faltan características: {faltantes}"
+assert train["incumplimiento"].isin([0, 1]).all()
+print("Características:", len(caracteristicas))
+```
+
+## D.4 Validación cronológica interna
+
+Se busca un corte cronológico que deje aproximadamente el **80 % de los registros en desarrollo y el 20 % en validación**, sin dividir los préstamos originados en un mismo mes. Debido a los tamaños de cada cohorte, la proporción puede no ser exactamente 80/20.
+
+```{python}
+#| label: validacion-cronologica
+conteos = train.groupby("fecha_emision", sort=True).size()
+assert len(conteos) >= 2, "Se requieren al menos dos fechas de originación."
+
+acumulados = conteos.cumsum()
+objetivo = len(train) * 0.80
+# El último mes queda reservado para validación, como mínimo.
+posicion = np.argmin(np.abs(acumulados.iloc[:-1].to_numpy() - objetivo))
+fecha_val = conteos.index[posicion + 1]
+
+desarrollo = train.loc[train["fecha_emision"] < fecha_val].copy()
+validacion = train.loc[train["fecha_emision"] >= fecha_val].copy()
+
+print("Inicio de validación:", fecha_val.date())
+print("Desarrollo:", len(desarrollo), f"({len(desarrollo)/len(train):.2%})")
+print("Validación:", len(validacion), f"({len(validacion)/len(train):.2%})")
+print("Incumplimiento en desarrollo:", f"{desarrollo['incumplimiento'].mean():.2%}")
+print("Incumplimiento en validación:", f"{validacion['incumplimiento'].mean():.2%}")
+assert len(desarrollo) + len(validacion) == len(train)
+assert desarrollo["fecha_emision"].max() < validacion["fecha_emision"].min()
+assert desarrollo["incumplimiento"].nunique() == 2
+assert validacion["incumplimiento"].nunique() == 2
+```
+
+## D.5 Preprocesamiento dentro del pipeline
+
+Las medianas y las categorías se aprenden solamente de los datos usados en cada llamada a `fit`. Se utiliza `handle_unknown="ignore"` para manejar categorías nuevas. El escalado se aplica a la regresión logística y no es necesario para los árboles. Los valores negativos de `dti` ya fueron convertidos a valores faltantes en la exportación `raw_split` de la Parte B, mediante una regla que no aprende parámetros; el pipeline imputa esos valores con la mediana del subconjunto correspondiente.
+
+```{python}
+#| label: pipelines
+from sklearn.base import clone
+
+def construir_preprocesador(escalar=False):
+    pasos_num = [("imputar", SimpleImputer(strategy="median"))]
+    if escalar:
+        pasos_num.append(("escalar", StandardScaler()))
+    pasos_log = [
+        ("imputar", SimpleImputer(strategy="median")),
+        ("logaritmo", FunctionTransformer(np.log1p, feature_names_out="one-to-one"))
+    ]
+    if escalar:
+        pasos_log.append(("escalar", StandardScaler()))
+    return ColumnTransformer([
+        ("numericas", Pipeline(pasos_num), numericas),
+        ("ingreso_log", Pipeline(pasos_log), log_numericas),
+        ("categoricas", Pipeline([
+            ("imputar", SimpleImputer(strategy="most_frequent")),
+            ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=True))
+        ]), categoricas)
+    ])
+
+modelos = {
+    "Regresion_logistica": Pipeline([
+        ("preparacion", construir_preprocesador(escalar=True)),
+        ("modelo", LogisticRegression(max_iter=500, solver="lbfgs"))
+    ]),
+    "Random_Forest": Pipeline([
+        ("preparacion", construir_preprocesador(escalar=False)),
+        ("modelo", RandomForestClassifier(
+            n_estimators=120, max_depth=18, min_samples_leaf=15,
+            n_jobs=-1, random_state=42
+        ))
+    ])
+}
+```
+
+## D.6 Comparación en validación
+
+Para comparar los algoritmos bajo el mismo tamaño de muestra, **ambos se entrenan con los mismos 150 000 registros de desarrollo**, seleccionados de manera reproducible (o con todos si hay menos). **No se submuestrea el conjunto de validación**. Este es un experimento controlado por tamaño de entrenamiento, no una búsqueda exhaustiva de hiperparámetros.
+
+```{python}
+#| label: comparar-modelos
+N_MUESTRA = min(150000, len(desarrollo))
+datos_comunes = desarrollo.sample(n=N_MUESTRA, random_state=42)
+print("Registros de ajuste por modelo:", len(datos_comunes))
+
+resultados = []
+modelos_validados = {}
+for nombre, pipeline in modelos.items():
+    modelo = clone(pipeline)
+    modelo.fit(datos_comunes[caracteristicas], datos_comunes["incumplimiento"])
+    probabilidades = modelo.predict_proba(validacion[caracteristicas])[:, 1]
+    resultados.append({
+        "Modelo": nombre,
+        "Filas_entrenamiento": len(datos_comunes),
+        "ROC_AUC": roc_auc_score(validacion["incumplimiento"], probabilidades),
+        "PR_AUC": average_precision_score(validacion["incumplimiento"], probabilidades),
+        "Brier": brier_score_loss(validacion["incumplimiento"], probabilidades)
+    })
+    modelos_validados[nombre] = modelo
+
+comparacion = pd.DataFrame(resultados).sort_values("PR_AUC", ascending=False)
+display(comparacion.round(4))
+```
+
+## D.7 Selección y ajuste final
+
+Se selecciona por PR-AUC de validación, métrica útil para comparar la capacidad de priorizar incumplimientos. El modelo seleccionado se ajusta nuevamente con **hasta 150 000 registros del entrenamiento completo**, conservando el presupuesto computacional del experimento. El conjunto de prueba no participa en la selección ni en el ajuste. La comparación es una línea base; pequeñas diferencias entre modelos no prueban superioridad estadística.
+
+```{python}
+#| label: guardar-modelo
+nombre_ganador = comparacion.iloc[0]["Modelo"]
+modelo_final = clone(modelos[nombre_ganador])
+datos_finales = train.sample(n=min(150000, len(train)), random_state=42)
+modelo_final.fit(datos_finales[caracteristicas], datos_finales["incumplimiento"])
+carpeta = Path("../outputs/models")
+carpeta.mkdir(parents=True, exist_ok=True)
+joblib.dump(modelo_final, carpeta / "modelo_final.joblib")
+metadatos = {
+    "modelo": nombre_ganador,
+    "caracteristicas": caracteristicas,
+    "fecha_inicio_validacion": str(fecha_val.date()),
+    "criterio_seleccion": "PR_AUC",
+    "filas_ajuste_final": len(datos_finales),
+    "filas_ajuste_validacion_por_modelo": len(datos_comunes),
+    "filas_validacion": len(validacion),
+    "nota_dti": "DTI negativos convertidos a NaN en la fase 02; mediana aprendida dentro del pipeline",
+    "versiones": {"sklearn": __import__("sklearn").__version__}
+}
+(carpeta / "modelo_metadata.json").write_text(json.dumps(metadatos, indent=2, ensure_ascii=False), encoding="utf-8")
+comparacion.to_csv(carpeta / "comparacion_validacion.csv", index=False)
+print("Modelo elegido:", nombre_ganador)
+print("Guardado en:", carpeta / "modelo_final.joblib")
+```
+
+## D.8 Limitaciones del modelado
+
+La selección usa una única ventana de validación cronológica, no validación cruzada repetida. Ambos algoritmos se comparan con la misma muestra, pero el límite de 150 000 observaciones puede restringir su desempeño respecto al entrenamiento con todos los datos. No se optimizaron hiperparámetros ni se estimaron intervalos de confianza para las diferencias de métricas. Además, `grade`, `sub_grade`, `int_rate` e `installment` reflejan parcialmente la evaluación previa del prestamista, y el uso exclusivo de préstamos con desenlace conocido puede introducir sesgo de maduración de cohortes. El resultado debe considerarse una línea base reproducible. El conjunto de prueba se analizará **una sola vez** en la Parte E.

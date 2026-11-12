@@ -1,0 +1,139 @@
+---
+title: "Análisis de Riesgo Crediticio - LendingClub"
+author: "Cristian Guzman"
+lang: es
+format:
+  html:
+    toc: true
+    code-fold: true
+    number-sections: false
+  pdf:
+    toc: true
+    number-sections: false
+jupyter: lendingclub-python
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+# Parte E: Evaluación final de modelos
+
+## E.1 Objetivo
+
+Evaluar el modelo seleccionado en la Parte D sobre el conjunto de prueba cronológicamente posterior, sin volver a entrenar ni elegir hiperparámetros con esos resultados.
+
+## E.2 Carga del modelo y datos de prueba
+
+```{python}
+#| label: carga-evaluacion
+from pathlib import Path
+import json
+import joblib
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.metrics import (
+    roc_auc_score, average_precision_score, brier_score_loss,
+    confusion_matrix, classification_report, RocCurveDisplay,
+    PrecisionRecallDisplay, ConfusionMatrixDisplay
+)
+base = Path("../outputs/models")
+modelo = joblib.load(base / "modelo_final.joblib")
+metadata = json.loads((base / "modelo_metadata.json").read_text(encoding="utf-8"))
+prueba = pd.read_parquet("../data/processed/test_raw_split.parquet")
+columnas = metadata["caracteristicas"]
+y = prueba["incumplimiento"]
+prob = modelo.predict_proba(prueba[columnas])[:, 1]
+print("Modelo:", metadata["modelo"])
+print("Registros de prueba:", len(prueba))
+print("Incumplimiento observado (%):", round(100*y.mean(), 2))
+```
+
+## E.3 Métricas de discriminación y probabilidad
+
+```{python}
+#| label: metricas-prueba
+metricas = pd.DataFrame([{
+    "Modelo": metadata["modelo"],
+    "ROC_AUC": roc_auc_score(y, prob),
+    "PR_AUC": average_precision_score(y, prob),
+    "Brier": brier_score_loss(y, prob),
+    "Prevalencia": y.mean()
+}])
+display(metricas.round(4))
+```
+
+La PR-AUC debe interpretarse junto con la prevalencia observada. Un buen ROC-AUC no garantiza probabilidades bien calibradas ni utilidad para una decisión de crédito.
+
+## E.4 Clasificación con umbral ilustrativo
+
+El umbral de 0.50 se presenta únicamente como referencia. No se optimiza usando prueba.
+
+```{python}
+#| label: matriz-confusion
+umbral = 0.50
+pred = (prob >= umbral).astype(int)
+print(classification_report(y, pred, target_names=["Pagado", "Castigado"], zero_division=0))
+ConfusionMatrixDisplay(confusion_matrix(y, pred), display_labels=["Pagado", "Castigado"]).plot(cmap="Blues")
+plt.title("Matriz de confusión (umbral 0.50)")
+plt.tight_layout(); plt.show()
+```
+
+## E.5 Curvas ROC y precisión-recall
+
+```{python}
+#| label: curvas-evaluacion
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+RocCurveDisplay.from_predictions(y, prob, ax=axes[0])
+PrecisionRecallDisplay.from_predictions(y, prob, ax=axes[1])
+axes[0].set_title("Curva ROC")
+axes[1].set_title("Curva precisión-recall")
+plt.tight_layout(); plt.show()
+```
+
+## E.6 Calibración por deciles
+
+```{python}
+#| label: calibracion
+cal = pd.DataFrame({"real": y.to_numpy(), "probabilidad": prob})
+cal["decil"] = pd.qcut(cal["probabilidad"].rank(method="first"), q=10, labels=False)
+resumen_cal = cal.groupby("decil").agg(
+    cantidad=("real", "size"),
+    probabilidad_media=("probabilidad", "mean"),
+    tasa_real=("real", "mean")
+).reset_index()
+display(resumen_cal.round(4))
+fig, ax = plt.subplots(figsize=(6, 5))
+ax.plot([0, 1], [0, 1], "--", color="gray", label="Calibración ideal")
+ax.plot(resumen_cal["probabilidad_media"], resumen_cal["tasa_real"], marker="o", label="Modelo")
+ax.set(xlabel="Probabilidad predicha", ylabel="Frecuencia observada", title="Calibración por deciles")
+ax.legend(); plt.tight_layout(); plt.show()
+```
+
+## E.7 Comparación con la validación y guardado
+
+```{python}
+#| label: exportar-evaluacion
+validacion = pd.read_csv(base / "comparacion_validacion.csv")
+display(validacion.round(4))
+carpeta_tablas = Path("../outputs/tables")
+carpeta_tablas.mkdir(parents=True, exist_ok=True)
+metricas.to_csv(carpeta_tablas / "metricas_prueba.csv", index=False)
+resumen_cal.to_csv(carpeta_tablas / "calibracion_prueba.csv", index=False)
+print("Tablas guardadas en", carpeta_tablas)
+```
+
+## E.8 Interpretación y límites de generalización
+
+La evaluación final del modelo Random Forest se realizó sobre 277,326 préstamos del conjunto de prueba, correspondientes a un período cronológicamente posterior al utilizado durante el entrenamiento. La tasa de incumplimiento observada fue del 21.85%.
+
+El modelo obtuvo un ROC-AUC de 0.6974 y una PR-AUC de 0.3761, lo que evidencia una capacidad moderada para distinguir entre préstamos pagados y castigados. En comparación con la validación, ambas métricas disminuyeron, lo que sugiere que el desempeño predictivo puede variar entre períodos.
+
+Al utilizar un umbral de clasificación de 0.50, el modelo presentó una precisión de 0.54 y un recall de 0.05 para los préstamos castigados. Esto demuestra que, aunque más de la mitad de los préstamos identificados como incumplidos efectivamente pertenecían a esa categoría, el modelo detectó solamente una pequeña proporción de todos los incumplimientos existentes.
+
+El análisis de calibración por deciles mostró una relación creciente entre el riesgo estimado y el incumplimiento observado. En el grupo de menor riesgo, la tasa real fue del 4.39%, mientras que en el grupo de mayor riesgo alcanzó el 44.60%. Este resultado indica que las probabilidades estimadas pueden ser útiles para ordenar préstamos según su nivel de riesgo, aunque existen diferencias entre las probabilidades predichas y las tasas observadas.
+
+Finalmente, los resultados deben interpretarse considerando que el conjunto de datos incluye únicamente préstamos con estados finales conocidos, excluyendo los préstamos activos. Esta selección puede introducir sesgos, especialmente en períodos recientes, y limita la generalización de los resultados a nuevos solicitantes de crédito.
+
+En conclusión, el modelo constituye una línea base útil para la clasificación y priorización del riesgo crediticio, pero su capacidad de detección con el umbral de 0.50 es insuficiente para recomendarlo como mecanismo autónomo de aprobación o rechazo de préstamos..
