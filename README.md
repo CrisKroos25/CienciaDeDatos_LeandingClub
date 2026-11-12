@@ -71,6 +71,8 @@ La estructura representa las rutas utilizadas en el proyecto; algunas carpetas s
 > Para una reproducción estricta, conviene fijar las versiones exactas de Python, R y paquetes, así como registrar el sistema operativo y las semillas aleatorias. Si `requirements.txt` no contiene versiones fijadas, los resultados pueden variar entre instalaciones.
 
 ## Reproducción paso a paso
+### 0. Descargar el Dataset en el siguiente link
+https://drive.google.com/file/d/11ikQ0UTjBROZ0spzhmpxjREERp-UhSD-/view?usp=sharing
 
 ### 1. Clonar el repositorio
 
