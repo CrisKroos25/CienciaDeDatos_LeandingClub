@@ -1,0 +1,493 @@
+---
+title: "Análisis de Riesgo Crediticio - LendingClub"
+subtitle: "Parte C: Análisis exploratorio univariado, bivariado y multivariado"
+author: "Cristian Guzman"
+lang: es
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    number-sections: false
+  pdf:
+    toc: true
+    number-sections: false
+execute:
+  echo: true
+  warning: false
+  message: false
+  freeze: false
+---
+
+# Parte C: Análisis exploratorio del riesgo crediticio
+
+## C.1 Objetivos, preguntas y criterios metodológicos
+
+Este análisis utiliza exclusivamente los préstamos del **conjunto de entrenamiento**. El conjunto de prueba se mantiene reservado para la evaluación final del modelo. Las relaciones observadas son **asociaciones**, no efectos causales.
+
+**Preguntas de investigación:**
+
+1.  ¿Qué proporción de préstamos terminó en incumplimiento?
+2.  ¿Cómo varían las características de los préstamos y los prestatarios?
+3.  ¿Qué diferencias se observan por calificación, plazo y situación financiera?
+4.  ¿Cómo se relacionan varias características simultáneamente con el incumplimiento?
+5.  ¿Qué patrones temporales aparecen y cuáles podrían deberse al sesgo de maduración?
+
+**Herramientas:** Python (`pandas`, `numpy`, `matplotlib`, `seaborn`) para lectura de Parquet, agregaciones y exportación; R (`dplyr`, `ggplot2`, `readr`, `tidyr`) para análisis estadístico, contrastes descriptivos y visualización. Quarto utiliza **Knitr + Reticulate** para ejecutar los dos lenguajes en el mismo documento.
+
+## C.2 Configuración reproducible de Python y R
+
+```{r}
+#| label: configurar-entorno
+#| include: false
+paquetes <- c("reticulate", "dplyr", "ggplot2", "readr", "tidyr", "knitr", "scales")
+faltantes <- paquetes[!vapply(paquetes, requireNamespace, logical(1), quietly = TRUE)]
+if (length(faltantes)) {
+  stop("Instala los paquetes R faltantes: install.packages(c(",
+       paste(sprintf('"%s"', faltantes), collapse = ", "), "))")
+}
+# Si el kernel de Python usa un entorno virtual/conda diferente, indica su ejecutable:
+# Sys.setenv(RETICULATE_PYTHON = "RUTA/ABSOLUTA/A/python.exe")
+# Alternativa Conda (antes de inicializar Python):
+# reticulate::use_condaenv("lendingclub-python", required = TRUE)
+if (nzchar(Sys.getenv("RETICULATE_PYTHON"))) {
+  reticulate::use_python(Sys.getenv("RETICULATE_PYTHON"), required = TRUE)
+} else {
+  try(reticulate::use_condaenv("lendingclub-python", required = FALSE), silent = TRUE)
+}
+options(scipen = 999)
+```
+
+```{python}
+#| label: carga-eda
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from IPython.display import display
+
+sns.set_theme(style="whitegrid")
+RUTA = Path("../data/processed/train_prepared.parquet")
+SALIDA = Path("../outputs/eda")
+SALIDA.mkdir(parents=True, exist_ok=True)
+if not RUTA.exists():
+    raise FileNotFoundError("Primero ejecuta 02_limpieza_python.qmd y genera train_prepared.parquet")
+df = pd.read_parquet(RUTA)
+df["fecha_emision"] = pd.to_datetime(df["fecha_emision"], errors="coerce")
+if "incumplimiento" not in df:
+    raise KeyError("No existe la variable objetivo 'incumplimiento'")
+print(f"Registros de entrenamiento: {len(df):,}")
+print(f"Columnas: {df.shape[1]}")
+print(f"Período: {df['fecha_emision'].min():%Y-%m} a {df['fecha_emision'].max():%Y-%m}")
+print(f"Incumplimiento: {100*df['incumplimiento'].mean():.2f}%")
+```
+
+El archivo de entrenamiento contiene préstamos emitidos antes del corte temporal de prueba. El uso exclusivo de esta muestra evita examinar anticipadamente los resultados del conjunto reservado para la evaluación final.
+
+## C.3 Diccionario de variables seleccionadas
+
+| Variable | Significado | Tipo |
+|------------------------|------------------------|------------------------|
+| `incumplimiento` | 1: préstamo castigado; 0: pagado completamente | Binaria |
+| `loan_amnt` | Monto solicitado del préstamo | Numérica |
+| `term_meses` | Duración contractual en meses | Numérica/discreta |
+| `int_rate` | Tasa de interés anual, expresada en porcentaje | Numérica |
+| `installment` | Cuota periódica del préstamo | Numérica |
+| `annual_inc` | Ingreso anual declarado | Numérica |
+| `dti` | Relación entre deuda e ingreso | Numérica |
+| `grade` | Calificación crediticia asignada por LendingClub | Ordinal |
+| `home_ownership` | Situación de vivienda | Categórica |
+| `verification_status` | Estado de verificación de ingresos | Categórica |
+| `purpose` | Propósito declarado del préstamo | Categórica |
+| `fecha_emision` | Fecha de originación del préstamo | Temporal |
+
+**Nota:** la tasa de interés y la calificación ya incorporan decisiones previas del prestamista. Las comparaciones no permiten afirmar que estas características causen el incumplimiento.
+
+## C.4 Análisis univariado
+
+### C.4.1 Distribución de la variable objetivo
+
+```{python}
+#| label: distribucion-objetivo
+conteos = df["incumplimiento"].value_counts().reindex([0, 1], fill_value=0)
+tabla_objetivo = pd.DataFrame({
+    "estado": ["Pagado completamente", "Castigado"],
+    "prestamos": conteos.to_numpy(),
+    "porcentaje": 100 * conteos.to_numpy() / len(df)
+})
+tabla_objetivo.to_csv(SALIDA / "distribucion_objetivo.csv", index=False)
+display(tabla_objetivo.round(2))
+fig, ax = plt.subplots(figsize=(7, 4))
+ax.bar(tabla_objetivo["estado"], tabla_objetivo["porcentaje"])
+ax.set_ylabel("Porcentaje de préstamos")
+ax.set_title("Distribución del resultado final")
+for i, v in enumerate(tabla_objetivo["porcentaje"]):
+    ax.text(i, v + 1, f"{v:.2f}%", ha="center")
+ax.set_ylim(0, 95)
+plt.tight_layout()
+plt.show()
+```
+
+### C.4.2 Distribución de características numéricas
+
+```{python}
+#| label: distribuciones-numericas
+numericas_descriptivas = ["loan_amnt", "int_rate", "installment", "annual_inc", "dti", "revol_util", "term_meses"]
+existentes = [c for c in numericas_descriptivas if c in df.columns]
+resumen_univariado = df[existentes].describe(percentiles=[.05, .25, .5, .75, .95]).T
+resumen_univariado["faltantes_pct"] = df[existentes].isna().mean() * 100
+resumen_univariado.to_csv(SALIDA / "resumen_univariado.csv", index_label="variable")
+display(resumen_univariado.round(2))
+
+fig, axes = plt.subplots(2, 2, figsize=(12, 7))
+for ax, var in zip(axes.flat, ["loan_amnt", "int_rate", "annual_inc", "dti"]):
+    datos = pd.to_numeric(df[var], errors="coerce").dropna()
+    limite = datos.quantile(.99)
+    ax.hist(datos[datos <= limite], bins=35)
+    ax.set_title(f"Distribución de {var} (hasta p99)")
+    ax.set_ylabel("Frecuencia")
+plt.tight_layout()
+plt.show()
+```
+
+Los histogramas muestran el comportamiento de cada variable de manera individual. Para facilitar la lectura se muestran valores hasta el percentil 99; **no se eliminan registros del conjunto utilizado en el análisis**.
+
+### C.4.3 Frecuencias de categorías
+
+```{python}
+#| label: frecuencias-categoricas
+for variable in ["grade", "term_meses", "home_ownership", "verification_status", "purpose"]:
+    tabla = df[variable].value_counts(dropna=False).rename_axis(variable).reset_index(name="prestamos")
+    tabla["porcentaje"] = tabla["prestamos"] / len(df) * 100
+    tabla.to_csv(SALIDA / f"frecuencias_{variable}.csv", index=False)
+    print(f"\n{variable}")
+    display(tabla.head(12).round(2))
+```
+
+## C.5 Análisis bivariado: diferencias entre grupos
+
+### C.5.1 Incumplimiento según características categóricas
+
+```{python}
+#| label: tasas-categoricas
+categoricas = ["grade", "term_meses", "home_ownership", "verification_status", "purpose", "application_type"]
+resultados = []
+for variable in categoricas:
+    tabla = (df.groupby(variable, dropna=False)["incumplimiento"]
+             .agg(prestamos="size", incumplidos="sum", tasa_incumplimiento="mean")
+             .reset_index())
+    tabla["tasa_incumplimiento"] *= 100
+    tabla.insert(0, "variable", variable)
+    tabla = tabla.rename(columns={variable: "categoria"})
+    tabla["categoria"] = tabla["categoria"].astype(str)
+    resultados.append(tabla)
+    print(f"\n{variable}")
+    display(tabla.sort_values("prestamos", ascending=False).head(15).round(2))
+tasas_categoricas = pd.concat(resultados, ignore_index=True)
+tasas_categoricas.to_csv(SALIDA / "tasas_por_categoria.csv", index=False)
+
+grado = tasas_categoricas[tasas_categoricas["variable"] == "grade"].copy()
+grado = grado[grado["categoria"].isin(list("ABCDEFG"))].sort_values("categoria")
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.bar(grado["categoria"], grado["tasa_incumplimiento"])
+ax.set(xlabel="Calificación crediticia", ylabel="Incumplimiento (%)",
+       title="Porcentaje de incumplimiento según calificación")
+plt.tight_layout()
+plt.show()
+```
+
+**Interpretación:** la comparación por calificación permite observar si las categorías de mayor riesgo asignadas por LendingClub también presentan mayor frecuencia de incumplimiento. No equivale a demostrar causalidad.
+
+### C.5.2 Comparación de medianas según resultado
+
+```{python}
+#| label: medianas-por-resultado
+numericas = ["loan_amnt", "int_rate", "installment", "annual_inc", "log_annual_inc", "dti", "revol_util", "antiguedad_crediticia_anios"]
+numericas = [c for c in numericas if c in df.columns]
+medianas = df.groupby("incumplimiento")[numericas].median().T
+medianas.columns = ["pagado_mediana", "castigado_mediana"]
+medianas["diferencia_castigado_menos_pagado"] = medianas["castigado_mediana"] - medianas["pagado_mediana"]
+medianas.to_csv(SALIDA / "medianas_por_resultado.csv", index_label="variable")
+display(medianas.round(2))
+
+muestra = df.sample(n=min(30000, len(df)), random_state=42)
+fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+for ax, variable in zip(axes.flat, ["int_rate", "log_annual_inc", "dti", "revol_util"]):
+    if variable in muestra:
+        sns.boxplot(data=muestra, x="incumplimiento", y=variable, ax=ax, showfliers=False)
+        ax.set_xticks([0, 1], ["Pagado", "Castigado"])
+        ax.set_xlabel("")
+        ax.set_title(variable)
+plt.tight_layout()
+plt.show()
+```
+
+## C.6 Análisis temporal por cohorte de originación
+
+```{python}
+#| label: cohortes
+cohortes = (df.dropna(subset=["fecha_emision"])
+            .groupby(df["fecha_emision"].dt.to_period("Q"))["incumplimiento"]
+            .agg(prestamos_resueltos="size", tasa_incumplimiento="mean")
+            .reset_index())
+cohortes["trimestre"] = cohortes["fecha_emision"].astype(str)
+cohortes["tasa_incumplimiento"] *= 100
+cohortes[["trimestre", "prestamos_resueltos", "tasa_incumplimiento"]].to_csv(
+    SALIDA / "cohortes_trimestrales.csv", index=False)
+display(cohortes.tail(16).round(2))
+fig, ax = plt.subplots(figsize=(12, 4))
+ax.plot(range(len(cohortes)), cohortes["tasa_incumplimiento"], marker="o", markersize=3)
+posiciones = np.arange(0, len(cohortes), max(1, len(cohortes)//10))
+ax.set_xticks(posiciones, cohortes.iloc[posiciones]["trimestre"], rotation=45)
+ax.set(xlabel="Trimestre de originación", ylabel="Incumplimiento (%)",
+       title="Tasa observada entre préstamos con resultado definitivo")
+plt.tight_layout()
+plt.show()
+```
+
+**Advertencia de sesgo:** solo se conservaron préstamos pagados completamente o castigados. En cohortes recientes, los préstamos que siguen activos no aparecen en el denominador. Por ello, una variación temporal no debe interpretarse como la evolución del riesgo de todos los préstamos originados.
+
+## C.7 Correlaciones entre variables numéricas
+
+```{python}
+#| label: matriz-correlacion-python
+cols = ["incumplimiento", "loan_amnt", "int_rate", "installment", "log_annual_inc", "dti", "revol_util", "term_meses", "antiguedad_crediticia_anios"]
+cols = [c for c in cols if c in df.columns]
+correlaciones = df[cols].corr(numeric_only=True)
+correlaciones.to_csv(SALIDA / "matriz_correlaciones.csv", index_label="variable")
+display(correlaciones["incumplimiento"].sort_values(ascending=False).to_frame("correlacion_con_incumplimiento").round(3))
+fig, ax = plt.subplots(figsize=(10, 8))
+sns.heatmap(correlaciones, cmap="vlag", center=0, vmin=-1, vmax=1, annot=True, fmt=".2f", ax=ax)
+ax.set_title("Matriz de correlaciones (Pearson)")
+plt.tight_layout()
+plt.show()
+```
+
+La correlación cuantifica la asociación lineal, pero no indica causalidad ni garantiza una relación útil para predecir por sí sola. Además, variables como `int_rate`, `grade` y `sub_grade` reflejan la evaluación crediticia previa del prestamista.
+
+## C.8 Análisis estadístico en R
+
+Esta sección demuestra el uso **real de R**, separado del procesamiento y exportación de datos realizado en Python. R importa los resúmenes generados en `../outputs/eda/`, evitando volver a cargar más de un millón de filas en memoria.
+
+### C.8.1 Frecuencias y distribución de incumplimiento con `dplyr` y `ggplot2`
+
+```{r}
+#| label: analisis-r-objetivo
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(tidyr)
+library(scales)
+carpeta_eda <- "../outputs/eda"
+objetivo_r <- read_csv(file.path(carpeta_eda, "distribucion_objetivo.csv"), show_col_types = FALSE)
+knitr::kable(objetivo_r, digits = 2, caption = "Distribución del resultado final")
+
+ggplot(objetivo_r, aes(x = estado, y = porcentaje, fill = estado)) +
+  geom_col(width = .65, show.legend = FALSE) +
+  geom_text(aes(label = sprintf("%.2f%%", porcentaje)), vjust = -0.5) +
+  scale_y_continuous(limits = c(0, 95)) +
+  labs(title = "Resultado final de los préstamos", x = NULL, y = "Porcentaje") +
+  theme_minimal(base_size = 12)
+```
+
+### C.8.2 Comparación de calificación y plazo con R
+
+```{r}
+#| label: analisis-r-categorias
+categorias_r <- read_csv(file.path(carpeta_eda, "tasas_por_categoria.csv"), show_col_types = FALSE)
+grado_r <- categorias_r |>
+  filter(variable == "grade", categoria %in% LETTERS[1:7]) |>
+  mutate(categoria = factor(categoria, levels = LETTERS[1:7]))
+plazo_r <- categorias_r |>
+  filter(variable == "term_meses")
+knitr::kable(grado_r |> select(categoria, prestamos, tasa_incumplimiento), digits = 2,
+             caption = "Incumplimiento por calificación")
+knitr::kable(plazo_r |> select(categoria, prestamos, tasa_incumplimiento), digits = 2,
+             caption = "Incumplimiento por plazo")
+
+ggplot(grado_r, aes(categoria, tasa_incumplimiento)) +
+  geom_col(fill = "#287e91") +
+  geom_text(aes(label = sprintf("%.1f%%", tasa_incumplimiento)), vjust = -0.35, size = 3.5) +
+  scale_y_continuous(expand = expansion(mult = c(0, .12))) +
+  labs(title = "Riesgo observado por calificación", x = "Calificación", y = "Incumplimiento (%)") +
+  theme_minimal(base_size = 12)
+```
+
+### C.8.3 Interpretación estadística de correlaciones con R
+
+```{r}
+#| label: analisis-r-correlaciones
+corr_r <- read_csv(file.path(carpeta_eda, "matriz_correlaciones.csv"), show_col_types = FALSE)
+nombre_primera <- names(corr_r)[1]
+corr_larga <- corr_r |>
+  rename(variable_fila = all_of(nombre_primera)) |>
+  pivot_longer(-variable_fila, names_to = "variable_columna", values_to = "correlacion")
+
+ggplot(corr_larga, aes(variable_fila, variable_columna, fill = correlacion)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf("%.2f", correlacion)), size = 2.7) +
+  scale_fill_gradient2(low = "#bd5c58", mid = "white", high = "#287e91", midpoint = 0, limits = c(-1, 1)) +
+  coord_equal() +
+  labs(title = "Relaciones lineales entre variables", x = NULL, y = NULL, fill = "Correlación") +
+  theme_minimal(base_size = 10) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## C.9 Análisis exploratorio multivariado
+
+En esta sección se examina cómo cambia el incumplimiento al considerar **más de una característica explicativa a la vez**. El propósito es explorar patrones conjuntos, no ajustar un nuevo modelo ni volver a utilizar el conjunto de prueba.
+
+### C.9.1 Cruce entre calificación y plazo del préstamo
+
+```{python}
+#| label: cruce-grado-plazo
+cruce = (df.groupby(["grade", "term_meses"], dropna=False)["incumplimiento"]
+         .agg(prestamos="size", incumplidos="sum", tasa_incumplimiento="mean")
+         .reset_index())
+cruce["tasa_incumplimiento"] *= 100
+cruce.to_csv(SALIDA / "cruce_grade_plazo.csv", index=False)
+display(cruce.sort_values(["grade", "term_meses"]).round(2))
+
+matriz = cruce.pivot(index="grade", columns="term_meses", values="tasa_incumplimiento")
+fig, ax = plt.subplots(figsize=(8, 5))
+sns.heatmap(matriz, annot=True, fmt=".1f", cmap="YlOrRd", ax=ax)
+ax.set(xlabel="Plazo (meses)", ylabel="Calificación", title="Incumplimiento (%) según calificación y plazo")
+plt.tight_layout()
+plt.show()
+```
+
+Las diferencias entre celdas deben leerse junto con el tamaño de cada grupo. No debe atribuirse automáticamente al plazo una diferencia que podría estar relacionada con otras características de los préstamos.
+
+### C.9.2 Interacción entre plazo, calificación e incumplimiento en R
+
+```{r}
+#| label: cruce-multivariado-r
+cruce_r <- read_csv(file.path(carpeta_eda, "cruce_grade_plazo.csv"), show_col_types = FALSE)
+cruce_r <- cruce_r |>
+  filter(grade %in% LETTERS[1:7]) |>
+  mutate(grade = factor(grade, levels = LETTERS[1:7]),
+         term_meses = factor(term_meses))
+
+ggplot(cruce_r, aes(grade, tasa_incumplimiento, color = term_meses, group = term_meses)) +
+  geom_line(linewidth = .9) +
+  geom_point(size = 2.5) +
+  labs(title = "Incumplimiento según calificación y plazo",
+       subtitle = "Comparación simultánea de tres variables",
+       x = "Calificación", y = "Incumplimiento (%)", color = "Plazo (meses)") +
+  theme_minimal(base_size = 12)
+```
+
+### C.9.3 Ingreso, endeudamiento e incumplimiento
+
+Se forman segmentos utilizando los **cuartiles del conjunto de entrenamiento**. Este procedimiento permite comparar simultáneamente ingreso anual, relación deuda-ingreso e incumplimiento, sin seleccionar umbrales basados en la muestra de prueba.
+
+```{python}
+#| label: ingreso-dti-multivariado
+segmentos = df[["annual_inc", "dti", "incumplimiento"]].copy()
+segmentos["annual_inc"] = pd.to_numeric(segmentos["annual_inc"], errors="coerce")
+segmentos["dti"] = pd.to_numeric(segmentos["dti"], errors="coerce")
+segmentos = segmentos.dropna(subset=["annual_inc", "dti", "incumplimiento"])
+segmentos = segmentos[(segmentos["annual_inc"] >= 0) & (segmentos["dti"] >= 0)]
+segmentos["cuartil_ingreso"] = pd.qcut(segmentos["annual_inc"].rank(method="first"), 4,
+                                         labels=["Ingreso Q1", "Ingreso Q2", "Ingreso Q3", "Ingreso Q4"])
+segmentos["cuartil_dti"] = pd.qcut(segmentos["dti"].rank(method="first"), 4,
+                                     labels=["DTI Q1", "DTI Q2", "DTI Q3", "DTI Q4"])
+tabla_segmentos = (segmentos.groupby(["cuartil_ingreso", "cuartil_dti"], observed=True)["incumplimiento"]
+                  .agg(prestamos="size", tasa_incumplimiento="mean").reset_index())
+tabla_segmentos["tasa_incumplimiento"] *= 100
+tabla_segmentos.to_csv(SALIDA / "cruce_ingreso_dti.csv", index=False)
+display(tabla_segmentos.round(2))
+fig, ax = plt.subplots(figsize=(9, 5))
+mat = tabla_segmentos.pivot(index="cuartil_ingreso", columns="cuartil_dti", values="tasa_incumplimiento")
+sns.heatmap(mat, annot=True, fmt=".1f", cmap="YlOrRd", ax=ax)
+ax.set(xlabel="Cuartil de relación deuda-ingreso", ylabel="Cuartil de ingreso anual",
+       title="Incumplimiento (%) según ingreso y endeudamiento")
+plt.tight_layout()
+plt.show()
+```
+
+Los cuartiles son grupos de tamaño similar dentro de cada variable. **Ingreso Q1** representa el 25% inferior de ingresos; **DTI Q4**, el 25% superior de relación deuda-ingreso. Los resultados describen asociaciones conjuntas y no efectos independientes o causales.
+
+### C.9.4 Visualización multivariada con R
+
+```{r}
+#| label: ingreso-dti-r
+segmentos_r <- read_csv(file.path(carpeta_eda, "cruce_ingreso_dti.csv"), show_col_types = FALSE)
+segmentos_r <- segmentos_r |>
+  mutate(cuartil_ingreso = factor(cuartil_ingreso, levels = paste("Ingreso Q", 1:4, sep = "")),
+         cuartil_dti = factor(cuartil_dti, levels = paste("DTI Q", 1:4, sep = "")))
+
+ggplot(segmentos_r, aes(cuartil_dti, cuartil_ingreso, fill = tasa_incumplimiento)) +
+  geom_tile(color = "white", linewidth = 1) +
+  geom_text(aes(label = sprintf("%.1f%%", tasa_incumplimiento)), size = 4) +
+  scale_fill_gradient(low = "#d6f0e8", high = "#ad3c32") +
+  labs(title = "Ingreso y endeudamiento: patrón conjunto",
+       x = "Relación deuda-ingreso", y = "Ingreso anual", fill = "Incumplimiento (%)") +
+  theme_minimal(base_size = 12)
+```
+
+## C.10 Síntesis automática de hallazgos
+
+```{python}
+#| label: resumen-automatico
+porcentaje = 100 * df["incumplimiento"].mean()
+print(f"1. La tasa de incumplimiento entre los préstamos resueltos del entrenamiento fue {porcentaje:.2f}%.")
+for categoria in ["A", "G"]:
+    fila = cruce[cruce["grade"].eq(categoria)]
+    if not fila.empty:
+        total = fila["prestamos"].sum()
+        tasa = 100 * fila["incumplidos"].sum() / total
+        print(f"2. Calificación {categoria}: {tasa:.2f}% de incumplimiento ({total:,} préstamos).")
+for plazo in [36, 60]:
+    serie = df.loc[df["term_meses"].eq(plazo), "incumplimiento"]
+    if len(serie):
+        print(f"3. Plazo {plazo} meses: {100*serie.mean():.2f}% de incumplimiento ({len(serie):,} préstamos).")
+print("4. Revisar el mapa de calor de calificación y plazo y los segmentos de ingreso y DTI antes de interpretar sus patrones.")
+print("5. Estas observaciones no demuestran causalidad ni permiten inferir directamente el riesgo de préstamos activos.")
+```
+
+## C.11 Conclusiones y límites del EDA
+
+El análisis univariado permite conocer las distribuciones, frecuencias y posibles valores extremos. El bivariado identifica diferencias entre préstamos pagados y castigados, y el multivariado explora patrones conjuntos por calificación, plazo, ingreso y endeudamiento.
+
+**Principales precauciones:**
+
+- Se observan únicamente préstamos con resultado final conocido: existe riesgo de **sesgo de selección y maduración**, especialmente en cohortes recientes.
+- Las diferencias entre grupos no prueban causalidad.
+- La calificación y la tasa de interés ya reflejan la evaluación del prestamista.
+- Los grupos pequeños deben interpretarse con cautela; las tablas incluyen su tamaño.
+- Los patrones descriptivos no sustituyen la evaluación predictiva fuera de muestra realizada en las fases 04 y 05.
+
+## C.12 Archivos generados y utilidad para Power BI
+
+Los resultados agregados se exportan a `../outputs/eda/`, incluyendo:
+
+- `distribucion_objetivo.csv`: volumen y porcentaje por estado.
+- `resumen_univariado.csv`: medidas descriptivas y valores faltantes.
+- `tasas_por_categoria.csv`: incumplimiento por calificación, plazo y otras categorías.
+- `medianas_por_resultado.csv`: comparación de variables numéricas.
+- `cohortes_trimestrales.csv`: evolución temporal de préstamos resueltos.
+- `matriz_correlaciones.csv`: asociaciones lineales.
+- `cruce_grade_plazo.csv`: análisis conjunto de calificación y plazo.
+- `cruce_ingreso_dti.csv`: análisis conjunto de ingreso y endeudamiento.
+
+Estos archivos pueden alimentar visualizaciones agregadas en Power BI, pero **no constituyen por sí mismos un dashboard interactivo completo**. Para filtros combinados sobre registros individuales convendrá preparar una tabla de hechos específica, conservando el corte de entrenamiento y evitando datos personales.
+
+## C.13 Reproducción y dependencias
+
+Desde la carpeta `reports/`:
+
+``` bash
+# Instalar paquetes R (solo la primera vez):
+Rscript -e "install.packages(c('reticulate','dplyr','ggplot2','readr','tidyr','knitr','scales'))"
+
+# Python debe disponer de pandas, numpy, matplotlib, seaborn y pyarrow.
+# Asegura que reticulate apunte al mismo Python del entorno lendingclub-python.
+# En Windows PowerShell, si fuera necesario:
+# $env:RETICULATE_PYTHON = 'C:/ruta/a/tu/entorno/python.exe'
+
+quarto render 03_analisis_exploratorio.qmd --to html
+```
+
+**Compatibilidad:** este informe no declara `jupyter: lendingclub-python` porque utiliza **Knitr + Reticulate**. Si el proyecto anterior se ejecutaba con Jupyter, es normal que debas instalar los paquetes R y configurar el intérprete de Python antes del primer renderizado. Se requiere disponer de R, Quarto y Python en el equipo.
