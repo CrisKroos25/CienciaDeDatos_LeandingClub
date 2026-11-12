@@ -1,0 +1,3462 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es" xml:lang="es"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Cristian Guzman">
+
+<title>Análisis de Riesgo Crediticio - LendingClub</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="02_limpieza_python_files/libs/clipboard/clipboard.min.js"></script>
+<script src="02_limpieza_python_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="02_limpieza_python_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="02_limpieza_python_files/libs/quarto-html/popper.min.js"></script>
+<script src="02_limpieza_python_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="02_limpieza_python_files/libs/quarto-html/anchor.min.js"></script>
+<link href="02_limpieza_python_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="02_limpieza_python_files/libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="02_limpieza_python_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="02_limpieza_python_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="02_limpieza_python_files/libs/bootstrap/bootstrap-215b371544c282197b31c8aa00ce3677.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+
+</head>
+
+<body class="quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Tabla de contenidos</h2>
+   
+  <ul>
+  <li><a href="#parte-b-limpieza-y-preprocesamiento" id="toc-parte-b-limpieza-y-preprocesamiento" class="nav-link active" data-scroll-target="#parte-b-limpieza-y-preprocesamiento">Parte B: Limpieza y preprocesamiento</a>
+  <ul class="collapse">
+  <li><a href="#b.1-objetivo" id="toc-b.1-objetivo" class="nav-link" data-scroll-target="#b.1-objetivo">B.1 Objetivo</a></li>
+  <li><a href="#b.2-carga-del-dataset-original" id="toc-b.2-carga-del-dataset-original" class="nav-link" data-scroll-target="#b.2-carga-del-dataset-original">B.2 Carga del dataset original</a></li>
+  <li><a href="#b.3-auditoría-general-de-calidad" id="toc-b.3-auditoría-general-de-calidad" class="nav-link" data-scroll-target="#b.3-auditoría-general-de-calidad">B.3 Auditoría general de calidad</a></li>
+  <li><a href="#b.4-evaluación-de-valores-faltantes" id="toc-b.4-evaluación-de-valores-faltantes" class="nav-link" data-scroll-target="#b.4-evaluación-de-valores-faltantes">B.4 Evaluación de valores faltantes</a>
+  <ul class="collapse">
+  <li><a href="#b.4.1-clasificación-por-porcentaje-de-valores-faltantes" id="toc-b.4.1-clasificación-por-porcentaje-de-valores-faltantes" class="nav-link" data-scroll-target="#b.4.1-clasificación-por-porcentaje-de-valores-faltantes">B.4.1 Clasificación por porcentaje de valores faltantes</a></li>
+  <li><a href="#b.4.2-visualización-de-los-valores-faltantes" id="toc-b.4.2-visualización-de-los-valores-faltantes" class="nav-link" data-scroll-target="#b.4.2-visualización-de-los-valores-faltantes">B.4.2 Visualización de los valores faltantes</a></li>
+  </ul></li>
+  <li><a href="#b.5-revisión-de-registros-duplicados" id="toc-b.5-revisión-de-registros-duplicados" class="nav-link" data-scroll-target="#b.5-revisión-de-registros-duplicados">B.5 Revisión de registros duplicados</a></li>
+  <li><a href="#b.6-identificación-de-variables-problemáticas" id="toc-b.6-identificación-de-variables-problemáticas" class="nav-link" data-scroll-target="#b.6-identificación-de-variables-problemáticas">B.6 Identificación de variables problemáticas</a>
+  <ul class="collapse">
+  <li><a href="#b.6.1-columnas-vacías-y-constantes" id="toc-b.6.1-columnas-vacías-y-constantes" class="nav-link" data-scroll-target="#b.6.1-columnas-vacías-y-constantes">B.6.1 Columnas vacías y constantes</a></li>
+  <li><a href="#b.6.2-revisión-de-rangos-financieros" id="toc-b.6.2-revisión-de-rangos-financieros" class="nav-link" data-scroll-target="#b.6.2-revisión-de-rangos-financieros">B.6.2 Revisión de rangos financieros</a></li>
+  </ul></li>
+  <li><a href="#b.7-exportación-de-los-resultados-de-auditoría" id="toc-b.7-exportación-de-los-resultados-de-auditoría" class="nav-link" data-scroll-target="#b.7-exportación-de-los-resultados-de-auditoría">B.7 Exportación de los resultados de auditoría</a></li>
+  <li><a href="#b.8-conclusiones-preliminares" id="toc-b.8-conclusiones-preliminares" class="nav-link" data-scroll-target="#b.8-conclusiones-preliminares">B.8 Conclusiones preliminares</a></li>
+  <li><a href="#b.9-selección-inicial-de-variables-para-el-modelado" id="toc-b.9-selección-inicial-de-variables-para-el-modelado" class="nav-link" data-scroll-target="#b.9-selección-inicial-de-variables-para-el-modelado">B.9 Selección inicial de variables para el modelado</a>
+  <ul class="collapse">
+  <li><a href="#b.9.1-diccionario-de-variables-seleccionadas" id="toc-b.9.1-diccionario-de-variables-seleccionadas" class="nav-link" data-scroll-target="#b.9.1-diccionario-de-variables-seleccionadas">B.9.1 Diccionario de variables seleccionadas</a></li>
+  </ul></li>
+  <li><a href="#b.10-selección-de-préstamos-con-resultado-definitivo" id="toc-b.10-selección-de-préstamos-con-resultado-definitivo" class="nav-link" data-scroll-target="#b.10-selección-de-préstamos-con-resultado-definitivo">B.10 Selección de préstamos con resultado definitivo</a></li>
+  <li><a href="#b.11-calidad-de-las-variables-seleccionadas" id="toc-b.11-calidad-de-las-variables-seleccionadas" class="nav-link" data-scroll-target="#b.11-calidad-de-las-variables-seleccionadas">B.11 Calidad de las variables seleccionadas</a></li>
+  <li><a href="#b.12-diagnóstico-y-estrategias-para-valores-faltantes" id="toc-b.12-diagnóstico-y-estrategias-para-valores-faltantes" class="nav-link" data-scroll-target="#b.12-diagnóstico-y-estrategias-para-valores-faltantes">B.12 Diagnóstico y estrategias para valores faltantes</a></li>
+  <li><a href="#b.13-transformación-de-tipos-de-datos" id="toc-b.13-transformación-de-tipos-de-datos" class="nav-link" data-scroll-target="#b.13-transformación-de-tipos-de-datos">B.13 Transformación de tipos de datos</a>
+  <ul class="collapse">
+  <li><a href="#b.13.1-conversión-del-plazo-del-préstamo" id="toc-b.13.1-conversión-del-plazo-del-préstamo" class="nav-link" data-scroll-target="#b.13.1-conversión-del-plazo-del-préstamo">B.13.1 Conversión del plazo del préstamo</a></li>
+  <li><a href="#b.13.2-conversión-de-fechas" id="toc-b.13.2-conversión-de-fechas" class="nav-link" data-scroll-target="#b.13.2-conversión-de-fechas">B.13.2 Conversión de fechas</a></li>
+  <li><a href="#b.13.3-antigüedad-laboral" id="toc-b.13.3-antigüedad-laboral" class="nav-link" data-scroll-target="#b.13.3-antigüedad-laboral">B.13.3 Antigüedad laboral</a></li>
+  </ul></li>
+  <li><a href="#b.14-separación-de-entrenamiento-y-prueba" id="toc-b.14-separación-de-entrenamiento-y-prueba" class="nav-link" data-scroll-target="#b.14-separación-de-entrenamiento-y-prueba">B.14 Separación de entrenamiento y prueba</a></li>
+  <li><a href="#b.15-imputación-de-valores-faltantes" id="toc-b.15-imputación-de-valores-faltantes" class="nav-link" data-scroll-target="#b.15-imputación-de-valores-faltantes">B.15 Imputación de valores faltantes</a></li>
+  <li><a href="#b.16-análisis-de-valores-atípicos" id="toc-b.16-análisis-de-valores-atípicos" class="nav-link" data-scroll-target="#b.16-análisis-de-valores-atípicos">B.16 Análisis de valores atípicos</a>
+  <ul class="collapse">
+  <li><a href="#b.16.1-estadísticas-descriptivas-y-percentiles" id="toc-b.16.1-estadísticas-descriptivas-y-percentiles" class="nav-link" data-scroll-target="#b.16.1-estadísticas-descriptivas-y-percentiles">B.16.1 Estadísticas descriptivas y percentiles</a></li>
+  <li><a href="#b.16.2-detección-mediante-el-rango-intercuartílico" id="toc-b.16.2-detección-mediante-el-rango-intercuartílico" class="nav-link" data-scroll-target="#b.16.2-detección-mediante-el-rango-intercuartílico">B.16.2 Detección mediante el rango intercuartílico</a></li>
+  <li><a href="#b.16.3-revisión-de-valores-potencialmente-inválidos" id="toc-b.16.3-revisión-de-valores-potencialmente-inválidos" class="nav-link" data-scroll-target="#b.16.3-revisión-de-valores-potencialmente-inválidos">B.16.3 Revisión de valores potencialmente inválidos</a></li>
+  </ul></li>
+  <li><a href="#b.17-evaluación-de-valores-extremos" id="toc-b.17-evaluación-de-valores-extremos" class="nav-link" data-scroll-target="#b.17-evaluación-de-valores-extremos">B.17 Evaluación de valores extremos</a>
+  <ul class="collapse">
+  <li><a href="#b.17.1-observaciones-extremas" id="toc-b.17.1-observaciones-extremas" class="nav-link" data-scroll-target="#b.17.1-observaciones-extremas">B.17.1 Observaciones extremas</a></li>
+  <li><a href="#b.17.2-frecuencia-de-casos-especiales" id="toc-b.17.2-frecuencia-de-casos-especiales" class="nav-link" data-scroll-target="#b.17.2-frecuencia-de-casos-especiales">B.17.2 Frecuencia de casos especiales</a></li>
+  </ul></li>
+  <li><a href="#b.18-tratamiento-de-valores-atípicos-y-transformaciones" id="toc-b.18-tratamiento-de-valores-atípicos-y-transformaciones" class="nav-link" data-scroll-target="#b.18-tratamiento-de-valores-atípicos-y-transformaciones">B.18 Tratamiento de valores atípicos y transformaciones</a>
+  <ul class="collapse">
+  <li><a href="#b.18.1-registro-de-decisiones" id="toc-b.18.1-registro-de-decisiones" class="nav-link" data-scroll-target="#b.18.1-registro-de-decisiones">B.18.1 Registro de decisiones</a></li>
+  <li><a href="#b.18.2-identificación-y-tratamiento-de-dti-negativo" id="toc-b.18.2-identificación-y-tratamiento-de-dti-negativo" class="nav-link" data-scroll-target="#b.18.2-identificación-y-tratamiento-de-dti-negativo">B.18.2 Identificación y tratamiento de DTI negativo</a></li>
+  <li><a href="#b.18.3-transformación-logarítmica-del-ingreso-anual" id="toc-b.18.3-transformación-logarítmica-del-ingreso-anual" class="nav-link" data-scroll-target="#b.18.3-transformación-logarítmica-del-ingreso-anual">B.18.3 Transformación logarítmica del ingreso anual</a></li>
+  <li><a href="#b.18.4-comparación-visual-de-distribuciones" id="toc-b.18.4-comparación-visual-de-distribuciones" class="nav-link" data-scroll-target="#b.18.4-comparación-visual-de-distribuciones">B.18.4 Comparación visual de distribuciones</a></li>
+  <li><a href="#b.18.5-validación-posterior-al-tratamiento" id="toc-b.18.5-validación-posterior-al-tratamiento" class="nav-link" data-scroll-target="#b.18.5-validación-posterior-al-tratamiento">B.18.5 Validación posterior al tratamiento</a></li>
+  <li><a href="#b.18.6-conclusiones-del-tratamiento" id="toc-b.18.6-conclusiones-del-tratamiento" class="nav-link" data-scroll-target="#b.18.6-conclusiones-del-tratamiento">B.18.6 Conclusiones del tratamiento</a></li>
+  </ul></li>
+  <li><a href="#b.19-validación-final-de-la-calidad" id="toc-b.19-validación-final-de-la-calidad" class="nav-link" data-scroll-target="#b.19-validación-final-de-la-calidad">B.19 Validación final de la calidad</a></li>
+  <li><a href="#b.20-exportación-de-datos-para-las-siguientes-fases" id="toc-b.20-exportación-de-datos-para-las-siguientes-fases" class="nav-link" data-scroll-target="#b.20-exportación-de-datos-para-las-siguientes-fases">B.20 Exportación de datos para las siguientes fases</a></li>
+  <li><a href="#b.21-conclusiones-y-limitaciones-de-la-limpieza" id="toc-b.21-conclusiones-y-limitaciones-de-la-limpieza" class="nav-link" data-scroll-target="#b.21-conclusiones-y-limitaciones-de-la-limpieza">B.21 Conclusiones y limitaciones de la limpieza</a></li>
+  </ul></li>
+  </ul>
+<div class="quarto-alternate-formats"><h2>Otros formatos</h2><ul><li><a href="02_limpieza_python.pdf"><i class="bi bi-file-pdf"></i>PDF</a></li></ul></div></nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Análisis de Riesgo Crediticio - LendingClub</h1>
+<p class="subtitle lead">Fase 2: Auditoría de calidad y preprocesamiento inicial</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Autor/a</div>
+    <div class="quarto-title-meta-contents">
+             <p>Cristian Guzman </p>
+          </div>
+  </div>
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="parte-b-limpieza-y-preprocesamiento" class="level1">
+<h1>Parte B: Limpieza y preprocesamiento</h1>
+<section id="b.1-objetivo" class="level2">
+<h2 class="anchored" data-anchor-id="b.1-objetivo">B.1 Objetivo</h2>
+<p>El objetivo de esta fase es evaluar la calidad de los datos originales e identificar inconsistencias, valores faltantes, registros duplicados y variables que requieren transformaciones.</p>
+<p>Las decisiones de limpieza se realizarán considerando el significado de cada variable y su utilidad para el análisis estadístico y predictivo.</p>
+<p>Durante esta primera etapa se realizará una auditoría de calidad sin modificar el conjunto de datos original. Los resultados permitirán establecer criterios de limpieza fundamentados.</p>
+</section>
+<section id="b.2-carga-del-dataset-original" class="level2">
+<h2 class="anchored" data-anchor-id="b.2-carga-del-dataset-original">B.2 Carga del dataset original</h2>
+<p>Se importan las librerías necesarias para el procesamiento y análisis de los datos. Posteriormente, se carga el archivo original de LendingClub.</p>
+<div id="carga-datos" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>sns.set_theme(style<span class="op">=</span><span class="st">"whitegrid"</span>)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>ruta <span class="op">=</span> Path(<span class="st">"../data/raw/loan.csv"</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_csv(ruta, low_memory<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Dataset cargado correctamente"</span>)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Filas originales:"</span>, df.shape[<span class="dv">0</span>])</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Columnas originales:"</span>, df.shape[<span class="dv">1</span>])</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Dataset cargado correctamente
+Filas originales: 2260668
+Columnas originales: 145</code></pre>
+</div>
+</div>
+<p>Se conserva el archivo original sin alteraciones para garantizar que el proceso de análisis sea reproducible.</p>
+</section>
+<section id="b.3-auditoría-general-de-calidad" class="level2">
+<h2 class="anchored" data-anchor-id="b.3-auditoría-general-de-calidad">B.3 Auditoría general de calidad</h2>
+<p>Se construye una tabla de auditoría para evaluar las 145 variables del conjunto de datos.</p>
+<p>Para cada columna se identifica su tipo de dato, cantidad de valores faltantes, porcentaje de valores faltantes, número de valores únicos y porcentaje de información disponible.</p>
+<div id="cell-auditoria-calidad" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>nulos <span class="op">=</span> df.isna().<span class="bu">sum</span>()</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>auditoria <span class="op">=</span> pd.DataFrame({</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Variable"</span>: df.columns,</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Tipo"</span>: df.dtypes.astype(<span class="bu">str</span>).values,</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Nulos"</span>: nulos.values,</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Porcentaje_nulos"</span>: nulos.values <span class="op">/</span> <span class="bu">len</span>(df) <span class="op">*</span> <span class="dv">100</span>,</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Valores_unicos"</span>: df.nunique(dropna<span class="op">=</span><span class="va">True</span>).values</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>auditoria[<span class="st">"Porcentaje_disponible"</span>] <span class="op">=</span> (</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    <span class="dv">100</span> <span class="op">-</span> auditoria[<span class="st">"Porcentaje_nulos"</span>]</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>auditoria <span class="op">=</span> auditoria.sort_values(</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Porcentaje_nulos"</span>,</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    ascending<span class="op">=</span><span class="va">False</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>).reset_index(drop<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>display(auditoria.head(<span class="dv">30</span>).<span class="bu">round</span>(<span class="dv">2</span>))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="auditoria-calidad" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Variable</th>
+<th data-quarto-table-cell-role="th">Tipo</th>
+<th data-quarto-table-cell-role="th">Nulos</th>
+<th data-quarto-table-cell-role="th">Porcentaje_nulos</th>
+<th data-quarto-table-cell-role="th">Valores_unicos</th>
+<th data-quarto-table-cell-role="th">Porcentaje_disponible</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>id</td>
+<td>float64</td>
+<td>2260668</td>
+<td>100.00</td>
+<td>0</td>
+<td>0.00</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>member_id</td>
+<td>float64</td>
+<td>2260668</td>
+<td>100.00</td>
+<td>0</td>
+<td>0.00</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>url</td>
+<td>float64</td>
+<td>2260668</td>
+<td>100.00</td>
+<td>0</td>
+<td>0.00</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>orig_projected_additional_accrued_interest</td>
+<td>float64</td>
+<td>2252242</td>
+<td>99.63</td>
+<td>7313</td>
+<td>0.37</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>hardship_amount</td>
+<td>float64</td>
+<td>2250055</td>
+<td>99.53</td>
+<td>8950</td>
+<td>0.47</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">5</th>
+<td>hardship_dpd</td>
+<td>float64</td>
+<td>2250055</td>
+<td>99.53</td>
+<td>34</td>
+<td>0.47</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">6</th>
+<td>hardship_loan_status</td>
+<td>str</td>
+<td>2250055</td>
+<td>99.53</td>
+<td>5</td>
+<td>0.47</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">7</th>
+<td>deferral_term</td>
+<td>float64</td>
+<td>2250055</td>
+<td>99.53</td>
+<td>1</td>
+<td>0.47</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">8</th>
+<td>hardship_end_date</td>
+<td>str</td>
+<td>2250055</td>
+<td>99.53</td>
+<td>27</td>
+<td>0.47</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">9</th>
+<td>hardship_status</td>
+<td>str</td>
+<td>2250055</td>
+<td>99.53</td>
+<td>3</td>
+<td>0.47</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">10</th>
+<td>hardship_start_date</td>
+<td>str</td>
+<td>2250055</td>
+<td>99.53</td>
+<td>26</td>
+<td>0.47</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">11</th>
+<td>hardship_reason</td>
+<td>str</td>
+<td>2250055</td>
+<td>99.53</td>
+<td>9</td>
+<td>0.47</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">12</th>
+<td>hardship_type</td>
+<td>str</td>
+<td>2250055</td>
+<td>99.53</td>
+<td>1</td>
+<td>0.47</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">13</th>
+<td>hardship_payoff_balance_amount</td>
+<td>float64</td>
+<td>2250055</td>
+<td>99.53</td>
+<td>10591</td>
+<td>0.47</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">14</th>
+<td>hardship_last_payment_amount</td>
+<td>float64</td>
+<td>2250055</td>
+<td>99.53</td>
+<td>8795</td>
+<td>0.47</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">15</th>
+<td>hardship_length</td>
+<td>float64</td>
+<td>2250055</td>
+<td>99.53</td>
+<td>1</td>
+<td>0.47</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">16</th>
+<td>payment_plan_start_date</td>
+<td>str</td>
+<td>2250055</td>
+<td>99.53</td>
+<td>26</td>
+<td>0.47</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">17</th>
+<td>debt_settlement_flag_date</td>
+<td>str</td>
+<td>2227612</td>
+<td>98.54</td>
+<td>82</td>
+<td>1.46</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">18</th>
+<td>settlement_term</td>
+<td>float64</td>
+<td>2227612</td>
+<td>98.54</td>
+<td>40</td>
+<td>1.46</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">19</th>
+<td>settlement_amount</td>
+<td>float64</td>
+<td>2227612</td>
+<td>98.54</td>
+<td>21519</td>
+<td>1.46</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">20</th>
+<td>settlement_date</td>
+<td>str</td>
+<td>2227612</td>
+<td>98.54</td>
+<td>89</td>
+<td>1.46</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">21</th>
+<td>settlement_percentage</td>
+<td>float64</td>
+<td>2227612</td>
+<td>98.54</td>
+<td>2045</td>
+<td>1.46</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">22</th>
+<td>settlement_status</td>
+<td>str</td>
+<td>2227612</td>
+<td>98.54</td>
+<td>3</td>
+<td>1.46</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">23</th>
+<td>sec_app_mths_since_last_major_derog</td>
+<td>float64</td>
+<td>2224726</td>
+<td>98.41</td>
+<td>140</td>
+<td>1.59</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">24</th>
+<td>sec_app_revol_util</td>
+<td>float64</td>
+<td>2154484</td>
+<td>95.30</td>
+<td>1216</td>
+<td>4.70</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">25</th>
+<td>revol_bal_joint</td>
+<td>float64</td>
+<td>2152648</td>
+<td>95.22</td>
+<td>56875</td>
+<td>4.78</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">26</th>
+<td>sec_app_earliest_cr_line</td>
+<td>str</td>
+<td>2152647</td>
+<td>95.22</td>
+<td>663</td>
+<td>4.78</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">27</th>
+<td>sec_app_mort_acc</td>
+<td>float64</td>
+<td>2152647</td>
+<td>95.22</td>
+<td>23</td>
+<td>4.78</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">28</th>
+<td>sec_app_open_act_il</td>
+<td>float64</td>
+<td>2152647</td>
+<td>95.22</td>
+<td>40</td>
+<td>4.78</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">29</th>
+<td>sec_app_num_rev_accts</td>
+<td>float64</td>
+<td>2152647</td>
+<td>95.22</td>
+<td>86</td>
+<td>4.78</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Esta auditoría permite identificar variables con problemas de disponibilidad y distinguir entre columnas completamente vacías y columnas parcialmente incompletas.</p>
+<p>Un porcentaje elevado de valores faltantes no implica necesariamente que una variable deba eliminarse, ya que algunos campos representan situaciones especiales que no aplican a todos los préstamos.</p>
+</section>
+<section id="b.4-evaluación-de-valores-faltantes" class="level2">
+<h2 class="anchored" data-anchor-id="b.4-evaluación-de-valores-faltantes">B.4 Evaluación de valores faltantes</h2>
+<section id="b.4.1-clasificación-por-porcentaje-de-valores-faltantes" class="level3">
+<h3 class="anchored" data-anchor-id="b.4.1-clasificación-por-porcentaje-de-valores-faltantes">B.4.1 Clasificación por porcentaje de valores faltantes</h3>
+<p>Las variables se clasifican en cuatro categorías según la proporción de información ausente.</p>
+<p>Los umbrales utilizados son criterios exploratorios y no representan reglas automáticas para eliminar columnas.</p>
+<div id="cell-clasificacion-nulos" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> clasificar_nulos(porcentaje):</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> porcentaje <span class="op">==</span> <span class="dv">0</span>:</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">"Sin nulos"</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> porcentaje <span class="op">&lt;=</span> <span class="dv">20</span>:</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">"Bajo (0-20%)"</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> porcentaje <span class="op">&lt;=</span> <span class="dv">50</span>:</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">"Moderado (20-50%)"</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">"Alto (&gt;50%)"</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>auditoria[<span class="st">"Nivel_nulos"</span>] <span class="op">=</span> (</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    auditoria[<span class="st">"Porcentaje_nulos"</span>]</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    .<span class="bu">apply</span>(clasificar_nulos)</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>resumen_nulos <span class="op">=</span> (</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    auditoria[<span class="st">"Nivel_nulos"</span>]</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    .value_counts()</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>display(resumen_nulos.to_frame(<span class="st">"Cantidad"</span>))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="clasificacion-nulos" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Cantidad</th>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">Nivel_nulos</th>
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">Bajo (0-20%)</th>
+<td>55</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">Alto (&gt;50%)</th>
+<td>44</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">Sin nulos</th>
+<td>32</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">Moderado (20-50%)</th>
+<td>14</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Esta clasificación permite conocer cuántas variables presentan problemas leves, moderados o elevados de disponibilidad.</p>
+</section>
+<section id="b.4.2-visualización-de-los-valores-faltantes" class="level3">
+<h3 class="anchored" data-anchor-id="b.4.2-visualización-de-los-valores-faltantes">B.4.2 Visualización de los valores faltantes</h3>
+<p>Se representan las 20 variables con mayor porcentaje de valores faltantes.</p>
+<div id="cell-grafico-nulos" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>top_nulos <span class="op">=</span> auditoria.head(<span class="dv">20</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">7</span>))</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>sns.barplot(</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    data<span class="op">=</span>top_nulos,</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    x<span class="op">=</span><span class="st">"Porcentaje_nulos"</span>,</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    y<span class="op">=</span><span class="st">"Variable"</span>,</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    color<span class="op">=</span><span class="st">"steelblue"</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>plt.title(</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"20 variables con mayor porcentaje de valores faltantes"</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">"Porcentaje de valores faltantes (%)"</span>)</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">"Variable"</span>)</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>plt.xlim(<span class="dv">0</span>, <span class="dv">105</span>)</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div id="grafico-nulos" class="quarto-figure quarto-figure-center anchored">
+<figure class="figure">
+<p><img src="02_limpieza_python_files/figure-html/grafico-nulos-output-1.png" width="942" height="656" class="figure-img"></p>
+<figcaption>Variables con mayor porcentaje de valores faltantes</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>La visualización facilita la identificación de las columnas con menor disponibilidad de información.</p>
+<p>Las variables relacionadas con dificultades económicas, acuerdos de deuda y segundos solicitantes requieren especial atención, debido a que su ausencia puede estar asociada con características específicas de los préstamos.</p>
+</section>
+</section>
+<section id="b.5-revisión-de-registros-duplicados" class="level2">
+<h2 class="anchored" data-anchor-id="b.5-revisión-de-registros-duplicados">B.5 Revisión de registros duplicados</h2>
+<p>Se verifica la existencia de filas completamente duplicadas en el conjunto de datos original.</p>
+<div id="revision-duplicados" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>duplicados <span class="op">=</span> df.duplicated().<span class="bu">sum</span>()</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>porcentaje_duplicados <span class="op">=</span> (</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    duplicados <span class="op">/</span> <span class="bu">len</span>(df)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>) <span class="op">*</span> <span class="dv">100</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Registros duplicados:"</span>, duplicados)</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Porcentaje de duplicados:"</span>,</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    <span class="bu">round</span>(porcentaje_duplicados, <span class="dv">2</span>), <span class="st">"%"</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Registros duplicados: 0
+Porcentaje de duplicados: 0.0 %</code></pre>
+</div>
+</div>
+<p>La ausencia de filas completamente duplicadas no garantiza que todos los préstamos sean únicos, especialmente porque las variables de identificación pueden estar incompletas.</p>
+<p>Por ello, este resultado debe interpretarse como una comprobación de duplicados exactos y no como una validación definitiva de unicidad.</p>
+</section>
+<section id="b.6-identificación-de-variables-problemáticas" class="level2">
+<h2 class="anchored" data-anchor-id="b.6-identificación-de-variables-problemáticas">B.6 Identificación de variables problemáticas</h2>
+<section id="b.6.1-columnas-vacías-y-constantes" class="level3">
+<h3 class="anchored" data-anchor-id="b.6.1-columnas-vacías-y-constantes">B.6.1 Columnas vacías y constantes</h3>
+<p>Se identifican las columnas que no contienen información y aquellas que presentan un único valor observado.</p>
+<div id="variables-problematicas" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>columnas_vacias <span class="op">=</span> auditoria.loc[</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    auditoria[<span class="st">"Porcentaje_nulos"</span>] <span class="op">==</span> <span class="dv">100</span>,</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Variable"</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>].tolist()</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>columnas_constantes <span class="op">=</span> auditoria.loc[</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    (auditoria[<span class="st">"Valores_unicos"</span>] <span class="op">==</span> <span class="dv">1</span>) <span class="op">&amp;</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    (auditoria[<span class="st">"Porcentaje_nulos"</span>] <span class="op">&lt;</span> <span class="dv">100</span>),</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Variable"</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>].tolist()</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Cantidad de columnas vacías:"</span>, <span class="bu">len</span>(columnas_vacias))</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Columnas completamente vacías:"</span>)</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(columnas_vacias)</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Cantidad de columnas constantes:"</span>, <span class="bu">len</span>(columnas_constantes))</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Columnas con un único valor observado:"</span>)</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(columnas_constantes)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Cantidad de columnas vacías: 3
+Columnas completamente vacías:
+['id', 'member_id', 'url']
+
+Cantidad de columnas constantes: 4
+Columnas con un único valor observado:
+['deferral_term', 'hardship_type', 'hardship_length', 'policy_code']</code></pre>
+</div>
+</div>
+<p>Las columnas completamente vacías no aportan información para el análisis de esta versión del dataset.</p>
+<p>Por otra parte, las variables constantes pueden tener una utilidad predictiva limitada, aunque su significado debe revisarse antes de excluirlas.</p>
+</section>
+<section id="b.6.2-revisión-de-rangos-financieros" class="level3">
+<h3 class="anchored" data-anchor-id="b.6.2-revisión-de-rangos-financieros">B.6.2 Revisión de rangos financieros</h3>
+<p>Se analizan los valores mínimos, máximos y principales medidas descriptivas de variables financieras relevantes.</p>
+<div id="cell-revision-rangos" class="cell" data-execution_count="7">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>variables_financieras <span class="op">=</span> [</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"loan_amnt"</span>,</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"annual_inc"</span>,</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"int_rate"</span>,</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"dti"</span>,</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"installment"</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>resumen_financiero <span class="op">=</span> df[variables_financieras].agg([</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"count"</span>,</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"min"</span>,</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"median"</span>,</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"mean"</span>,</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"max"</span>,</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"std"</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>]).T</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>display(resumen_financiero.<span class="bu">round</span>(<span class="dv">2</span>))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="revision-rangos" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">count</th>
+<th data-quarto-table-cell-role="th">min</th>
+<th data-quarto-table-cell-role="th">median</th>
+<th data-quarto-table-cell-role="th">mean</th>
+<th data-quarto-table-cell-role="th">max</th>
+<th data-quarto-table-cell-role="th">std</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">loan_amnt</th>
+<td>2260668.0</td>
+<td>500.00</td>
+<td>12900.00</td>
+<td>15046.93</td>
+<td>4.000000e+04</td>
+<td>9190.25</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">annual_inc</th>
+<td>2260664.0</td>
+<td>0.00</td>
+<td>65000.00</td>
+<td>77992.43</td>
+<td>1.100000e+08</td>
+<td>112696.20</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">int_rate</th>
+<td>2260668.0</td>
+<td>5.31</td>
+<td>12.62</td>
+<td>13.09</td>
+<td>3.099000e+01</td>
+<td>4.83</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">dti</th>
+<td>2258957.0</td>
+<td>-1.00</td>
+<td>17.84</td>
+<td>18.82</td>
+<td>9.990000e+02</td>
+<td>14.18</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">installment</th>
+<td>2260668.0</td>
+<td>4.93</td>
+<td>377.99</td>
+<td>445.81</td>
+<td>1.719830e+03</td>
+<td>267.17</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Esta revisión permite detectar valores extremos o potencialmente inconsistentes.</p>
+<p>En particular, las variables de ingreso anual y relación deuda-ingreso requieren un análisis posterior de valores atípicos.</p>
+<p>No se aplicarán correcciones automáticas, ya que primero es necesario determinar si estos valores corresponden a observaciones válidas, valores especiales o errores.</p>
+</section>
+</section>
+<section id="b.7-exportación-de-los-resultados-de-auditoría" class="level2">
+<h2 class="anchored" data-anchor-id="b.7-exportación-de-los-resultados-de-auditoría">B.7 Exportación de los resultados de auditoría</h2>
+<p>Se guarda la tabla de auditoría para facilitar su consulta durante las siguientes fases del proyecto.</p>
+<div id="guardar-auditoria" class="cell" data-execution_count="8">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>salida <span class="op">=</span> Path(<span class="st">"../outputs/tables"</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>salida.mkdir(parents<span class="op">=</span><span class="va">True</span>, exist_ok<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>archivo_salida <span class="op">=</span> salida <span class="op">/</span> <span class="st">"auditoria_calidad.csv"</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>auditoria.to_csv(</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    archivo_salida,</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>    index<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>    encoding<span class="op">=</span><span class="st">"utf-8-sig"</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Auditoría guardada correctamente"</span>)</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Archivo:"</span>, archivo_salida)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Auditoría guardada correctamente
+Archivo: ..\outputs\tables\auditoria_calidad.csv</code></pre>
+</div>
+</div>
+<p>El archivo generado contiene los indicadores de calidad correspondientes a todas las variables del conjunto de datos original.</p>
+<p>La exportación de esta tabla no modifica los registros originales.</p>
+</section>
+<section id="b.8-conclusiones-preliminares" class="level2">
+<h2 class="anchored" data-anchor-id="b.8-conclusiones-preliminares">B.8 Conclusiones preliminares</h2>
+<p>La auditoría inicial permite identificar las principales características de calidad del conjunto de datos de LendingClub.</p>
+<p>Se evaluaron los tipos de datos, valores faltantes, registros duplicados, columnas completamente vacías, variables constantes y rangos de las principales variables financieras.</p>
+<p>Los resultados obtenidos servirán para establecer criterios de limpieza y preprocesamiento, evitando eliminar información relevante sin una justificación estadística o conceptual.</p>
+<p>La presencia de valores faltantes deberá evaluarse considerando el significado de cada variable, especialmente cuando la ausencia de información corresponda a situaciones particulares de los préstamos.</p>
+<p>Asimismo, los valores extremos detectados en variables financieras deberán analizarse mediante técnicas estadísticas antes de determinar su tratamiento.</p>
+<p>En las siguientes etapas se establecerán las variables que deben conservarse, transformarse o excluirse, considerando los objetivos descriptivos y predictivos del proyecto.</p>
+<p><strong>Esta fase constituye una auditoría de calidad; todavía no se han aplicado transformaciones ni eliminaciones sobre los datos originales.</strong></p>
+</section>
+<section id="b.9-selección-inicial-de-variables-para-el-modelado" class="level2">
+<h2 class="anchored" data-anchor-id="b.9-selección-inicial-de-variables-para-el-modelado">B.9 Selección inicial de variables para el modelado</h2>
+<p>Se seleccionan variables financieras y crediticias que pueden estar disponibles al momento de originar un préstamo.</p>
+<p>Se excluyen las variables relacionadas con pagos realizados, recuperaciones y acuerdos posteriores, para evitar fugas de información en los modelos predictivos.</p>
+<div id="seleccion-variables" class="cell" data-execution_count="9">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>variables_modelo <span class="op">=</span> [</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"loan_status"</span>,</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"issue_d"</span>,</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"loan_amnt"</span>,</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"term"</span>,</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"int_rate"</span>,</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"installment"</span>,</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"grade"</span>,</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"sub_grade"</span>,</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"emp_length"</span>,</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"home_ownership"</span>,</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"annual_inc"</span>,</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"verification_status"</span>,</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"purpose"</span>,</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"dti"</span>,</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">"delinq_2yrs"</span>,</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">"earliest_cr_line"</span>,</span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">"inq_last_6mths"</span>,</span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">"open_acc"</span>,</span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">"pub_rec"</span>,</span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"revol_bal"</span>,</span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">"revol_util"</span>,</span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>    <span class="st">"total_acc"</span>,</span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>    <span class="st">"application_type"</span>,</span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>    <span class="st">"mort_acc"</span>,</span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>    <span class="st">"pub_rec_bankruptcies"</span></span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>df_trabajo <span class="op">=</span> df[variables_modelo].copy()</span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Filas:"</span>, <span class="bu">len</span>(df_trabajo))</span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Variables:"</span>, df_trabajo.shape[<span class="dv">1</span>])</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Filas: 2260668
+Variables: 25</code></pre>
+</div>
+</div>
+<section id="b.9.1-diccionario-de-variables-seleccionadas" class="level3">
+<h3 class="anchored" data-anchor-id="b.9.1-diccionario-de-variables-seleccionadas">B.9.1 Diccionario de variables seleccionadas</h3>
+<p>El siguiente diccionario describe las variables utilizadas en la selección inicial para el análisis de riesgo crediticio.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Variable</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>loan_status</code></td>
+<td>Estado actual o final del préstamo.</td>
+</tr>
+<tr class="even">
+<td><code>issue_d</code></td>
+<td>Mes y año en que se financió el préstamo.</td>
+</tr>
+<tr class="odd">
+<td><code>loan_amnt</code></td>
+<td>Monto del préstamo registrado.</td>
+</tr>
+<tr class="even">
+<td><code>term</code></td>
+<td>Plazo de pago del préstamo, expresado en meses.</td>
+</tr>
+<tr class="odd">
+<td><code>int_rate</code></td>
+<td>Tasa de interés anual del préstamo, expresada en porcentaje.</td>
+</tr>
+<tr class="even">
+<td><code>installment</code></td>
+<td>Cuota mensual que debe pagar el prestatario.</td>
+</tr>
+<tr class="odd">
+<td><code>grade</code></td>
+<td>Calificación crediticia asignada por LendingClub.</td>
+</tr>
+<tr class="even">
+<td><code>sub_grade</code></td>
+<td>Subcategoría de la calificación crediticia.</td>
+</tr>
+<tr class="odd">
+<td><code>emp_length</code></td>
+<td>Antigüedad laboral declarada por el solicitante.</td>
+</tr>
+<tr class="even">
+<td><code>home_ownership</code></td>
+<td>Situación de vivienda del solicitante, como propia, alquilada o hipotecada.</td>
+</tr>
+<tr class="odd">
+<td><code>annual_inc</code></td>
+<td>Ingreso anual declarado por el solicitante.</td>
+</tr>
+<tr class="even">
+<td><code>verification_status</code></td>
+<td>Estado de verificación de los ingresos.</td>
+</tr>
+<tr class="odd">
+<td><code>purpose</code></td>
+<td>Finalidad declarada del préstamo.</td>
+</tr>
+<tr class="even">
+<td><code>dti</code></td>
+<td>Relación entre obligaciones mensuales de deuda e ingresos mensuales, expresada como porcentaje.</td>
+</tr>
+<tr class="odd">
+<td><code>delinq_2yrs</code></td>
+<td>Número de incidencias de morosidad de 30 días o más en los últimos dos años.</td>
+</tr>
+<tr class="even">
+<td><code>earliest_cr_line</code></td>
+<td>Fecha de apertura de la primera línea de crédito registrada.</td>
+</tr>
+<tr class="odd">
+<td><code>inq_last_6mths</code></td>
+<td>Número de consultas crediticias recientes durante los últimos seis meses.</td>
+</tr>
+<tr class="even">
+<td><code>open_acc</code></td>
+<td>Número de cuentas de crédito abiertas.</td>
+</tr>
+<tr class="odd">
+<td><code>pub_rec</code></td>
+<td>Número de registros públicos desfavorables.</td>
+</tr>
+<tr class="even">
+<td><code>revol_bal</code></td>
+<td>Saldo total de crédito revolvente.</td>
+</tr>
+<tr class="odd">
+<td><code>revol_util</code></td>
+<td>Porcentaje de utilización del crédito revolvente disponible.</td>
+</tr>
+<tr class="even">
+<td><code>total_acc</code></td>
+<td>Número total de cuentas de crédito registradas.</td>
+</tr>
+<tr class="odd">
+<td><code>application_type</code></td>
+<td>Tipo de solicitud: individual o conjunta.</td>
+</tr>
+<tr class="even">
+<td><code>mort_acc</code></td>
+<td>Número de cuentas hipotecarias registradas.</td>
+</tr>
+<tr class="odd">
+<td><code>pub_rec_bankruptcies</code></td>
+<td>Número de registros públicos de bancarrota.</td>
+</tr>
+</tbody>
+</table>
+<p>Adicionalmente, durante el preprocesamiento se genera la variable <code>incumplimiento</code>, que representa el resultado binario del préstamo:</p>
+<ul>
+<li><strong>0:</strong> Préstamo pagado completamente (<code>Fully Paid</code>).</li>
+<li><strong>1:</strong> Préstamo castigado (<code>Charged Off</code>).</li>
+</ul>
+<p>Esta variable será utilizada como objetivo de clasificación en la etapa de modelado predictivo.</p>
+</section>
+</section>
+<section id="b.10-selección-de-préstamos-con-resultado-definitivo" class="level2">
+<h2 class="anchored" data-anchor-id="b.10-selección-de-préstamos-con-resultado-definitivo">B.10 Selección de préstamos con resultado definitivo</h2>
+<p>Para el primer problema de clasificación se consideran los préstamos pagados completamente y aquellos clasificados como castigados.</p>
+<p>Los préstamos activos o con estados todavía no definitivos se excluyen de este subconjunto, pero permanecen en el archivo original.</p>
+<div id="cell-seleccion-estados" class="cell" data-execution_count="10">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>estados_definitivos <span class="op">=</span> [</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Fully Paid"</span>,</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Charged Off"</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>df_modelo <span class="op">=</span> df_trabajo.loc[</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>    df_trabajo[<span class="st">"loan_status"</span>].isin(estados_definitivos)</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>].copy()</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>df_modelo[<span class="st">"incumplimiento"</span>] <span class="op">=</span> (</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>    df_modelo[<span class="st">"loan_status"</span>] <span class="op">==</span> <span class="st">"Charged Off"</span></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>).astype(<span class="st">"int8"</span>)</span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Registros seleccionados:"</span>, <span class="bu">len</span>(df_modelo))</span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Variables:"</span>, df_modelo.shape[<span class="dv">1</span>])</span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>display(</span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>    df_modelo[<span class="st">"loan_status"</span>]</span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>    .value_counts()</span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>    .to_frame(<span class="st">"Cantidad"</span>)</span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Registros seleccionados: 1303607
+Variables: 26</code></pre>
+</div>
+<div id="seleccion-estados" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Cantidad</th>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">loan_status</th>
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">Fully Paid</th>
+<td>1041952</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">Charged Off</th>
+<td>261655</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="b.11-calidad-de-las-variables-seleccionadas" class="level2">
+<h2 class="anchored" data-anchor-id="b.11-calidad-de-las-variables-seleccionadas">B.11 Calidad de las variables seleccionadas</h2>
+<p>Se vuelve a calcular la proporción de valores faltantes, esta vez únicamente sobre los préstamos con resultado definitivo.</p>
+<p>Esto permite identificar qué transformaciones serán necesarias antes del modelado.</p>
+<div id="cell-auditoria-modelo" class="cell" data-execution_count="11">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>auditoria_modelo <span class="op">=</span> pd.DataFrame({</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Tipo"</span>: df_modelo.dtypes.astype(<span class="bu">str</span>),</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Nulos"</span>: df_modelo.isna().<span class="bu">sum</span>(),</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Porcentaje_nulos"</span>: (</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>        df_modelo.isna().mean() <span class="op">*</span> <span class="dv">100</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Valores_unicos"</span>: df_modelo.nunique(dropna<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>auditoria_modelo <span class="op">=</span> auditoria_modelo.sort_values(</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Porcentaje_nulos"</span>,</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>    ascending<span class="op">=</span><span class="va">False</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>display(auditoria_modelo.<span class="bu">round</span>(<span class="dv">3</span>))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="auditoria-modelo" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Tipo</th>
+<th data-quarto-table-cell-role="th">Nulos</th>
+<th data-quarto-table-cell-role="th">Porcentaje_nulos</th>
+<th data-quarto-table-cell-role="th">Valores_unicos</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">emp_length</th>
+<td>str</td>
+<td>75454</td>
+<td>5.788</td>
+<td>11</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">mort_acc</th>
+<td>float64</td>
+<td>47281</td>
+<td>3.627</td>
+<td>38</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">revol_util</th>
+<td>float64</td>
+<td>810</td>
+<td>0.062</td>
+<td>1363</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">pub_rec_bankruptcies</th>
+<td>float64</td>
+<td>697</td>
+<td>0.053</td>
+<td>12</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">dti</th>
+<td>float64</td>
+<td>312</td>
+<td>0.024</td>
+<td>6870</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">inq_last_6mths</th>
+<td>float64</td>
+<td>1</td>
+<td>0.000</td>
+<td>9</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">issue_d</th>
+<td>str</td>
+<td>0</td>
+<td>0.000</td>
+<td>139</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">loan_amnt</th>
+<td>int64</td>
+<td>0</td>
+<td>0.000</td>
+<td>1553</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">int_rate</th>
+<td>float64</td>
+<td>0</td>
+<td>0.000</td>
+<td>654</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">loan_status</th>
+<td>str</td>
+<td>0</td>
+<td>0.000</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">home_ownership</th>
+<td>str</td>
+<td>0</td>
+<td>0.000</td>
+<td>6</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">sub_grade</th>
+<td>str</td>
+<td>0</td>
+<td>0.000</td>
+<td>35</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">grade</th>
+<td>str</td>
+<td>0</td>
+<td>0.000</td>
+<td>7</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">installment</th>
+<td>float64</td>
+<td>0</td>
+<td>0.000</td>
+<td>82574</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">term</th>
+<td>str</td>
+<td>0</td>
+<td>0.000</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">purpose</th>
+<td>str</td>
+<td>0</td>
+<td>0.000</td>
+<td>14</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">verification_status</th>
+<td>str</td>
+<td>0</td>
+<td>0.000</td>
+<td>3</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">annual_inc</th>
+<td>float64</td>
+<td>0</td>
+<td>0.000</td>
+<td>62988</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">open_acc</th>
+<td>float64</td>
+<td>0</td>
+<td>0.000</td>
+<td>84</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">earliest_cr_line</th>
+<td>str</td>
+<td>0</td>
+<td>0.000</td>
+<td>738</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">delinq_2yrs</th>
+<td>float64</td>
+<td>0</td>
+<td>0.000</td>
+<td>30</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">pub_rec</th>
+<td>float64</td>
+<td>0</td>
+<td>0.000</td>
+<td>37</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">total_acc</th>
+<td>float64</td>
+<td>0</td>
+<td>0.000</td>
+<td>142</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">revol_bal</th>
+<td>int64</td>
+<td>0</td>
+<td>0.000</td>
+<td>82819</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">application_type</th>
+<td>str</td>
+<td>0</td>
+<td>0.000</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">incumplimiento</th>
+<td>int8</td>
+<td>0</td>
+<td>0.000</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="b.12-diagnóstico-y-estrategias-para-valores-faltantes" class="level2">
+<h2 class="anchored" data-anchor-id="b.12-diagnóstico-y-estrategias-para-valores-faltantes">B.12 Diagnóstico y estrategias para valores faltantes</h2>
+<p>Se documenta el tratamiento propuesto para los campos incompletos del subconjunto seleccionado. Los estadísticos de imputación se calcularán únicamente con el conjunto de entrenamiento para evitar fugas de información.</p>
+<div id="cell-estrategias-nulos" class="cell" data-execution_count="12">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>estrategias_nulos <span class="op">=</span> pd.DataFrame({</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Variable"</span>: [<span class="st">"emp_length"</span>, <span class="st">"mort_acc"</span>, <span class="st">"revol_util"</span>, <span class="st">"pub_rec_bankruptcies"</span>, <span class="st">"dti"</span>, <span class="st">"inq_last_6mths"</span>],</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Estrategia"</span>: [</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Categoría No informado"</span>, <span class="st">"Mediana de entrenamiento"</span>,</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Mediana de entrenamiento"</span>, <span class="st">"Mediana de entrenamiento"</span>,</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Mediana de entrenamiento y revisión de negativos"</span>,</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Mediana de entrenamiento"</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Justificación"</span>: [</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>        <span class="st">"La ausencia no equivale a cero años de empleo"</span>,</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>        <span class="st">"El valor desconocido no implica cero hipotecas"</span>,</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Se evita asignar arbitrariamente cero"</span>,</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Se distingue entre ausencia de datos y ausencia de bancarrotas"</span>,</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Se investigan codificaciones especiales negativas"</span>,</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Una consulta no informada no equivale a ninguna consulta"</span></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>display(estrategias_nulos)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="estrategias-nulos" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Variable</th>
+<th data-quarto-table-cell-role="th">Estrategia</th>
+<th data-quarto-table-cell-role="th">Justificación</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>emp_length</td>
+<td>Categoría No informado</td>
+<td>La ausencia no equivale a cero años de empleo</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>mort_acc</td>
+<td>Mediana de entrenamiento</td>
+<td>El valor desconocido no implica cero hipotecas</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>revol_util</td>
+<td>Mediana de entrenamiento</td>
+<td>Se evita asignar arbitrariamente cero</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>pub_rec_bankruptcies</td>
+<td>Mediana de entrenamiento</td>
+<td>Se distingue entre ausencia de datos y ausenci...</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>dti</td>
+<td>Mediana de entrenamiento y revisión de negativos</td>
+<td>Se investigan codificaciones especiales negativas</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">5</th>
+<td>inq_last_6mths</td>
+<td>Mediana de entrenamiento</td>
+<td>Una consulta no informada no equivale a ningun...</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="b.13-transformación-de-tipos-de-datos" class="level2">
+<h2 class="anchored" data-anchor-id="b.13-transformación-de-tipos-de-datos">B.13 Transformación de tipos de datos</h2>
+<section id="b.13.1-conversión-del-plazo-del-préstamo" class="level3">
+<h3 class="anchored" data-anchor-id="b.13.1-conversión-del-plazo-del-préstamo">B.13.1 Conversión del plazo del préstamo</h3>
+<p>La variable <code>term</code> almacena el plazo del préstamo como texto. Se convierte a un valor numérico expresado en meses.</p>
+<div id="cell-transformar-plazo" class="cell" data-execution_count="13">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>df_modelo[<span class="st">"term_meses"</span>] <span class="op">=</span> pd.to_numeric(</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>    df_modelo[<span class="st">"term"</span>].<span class="bu">str</span>.extract(<span class="vs">r"</span><span class="kw">(</span><span class="dv">\d</span><span class="op">+</span><span class="kw">)</span><span class="vs">"</span>)[<span class="dv">0</span>],</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>    errors<span class="op">=</span><span class="st">"coerce"</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Distribución del plazo:"</span>)</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>display(df_modelo[<span class="st">"term_meses"</span>].value_counts(dropna<span class="op">=</span><span class="va">False</span>))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Distribución del plazo:</code></pre>
+</div>
+<div id="transformar-plazo" class="cell-output cell-output-display">
+<pre><code>term_meses
+36    988754
+60    314853
+Name: count, dtype: int64</code></pre>
+</div>
+</div>
+</section>
+<section id="b.13.2-conversión-de-fechas" class="level3">
+<h3 class="anchored" data-anchor-id="b.13.2-conversión-de-fechas">B.13.2 Conversión de fechas</h3>
+<p>Se convierten las fechas de emisión del préstamo y apertura de la primera línea de crédito.</p>
+<p>A partir de ellas se calcula la antigüedad crediticia aproximada del solicitante al momento de financiarse el préstamo.</p>
+<div id="cell-transformar-fechas" class="cell" data-execution_count="14">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>df_modelo[<span class="st">"fecha_emision"</span>] <span class="op">=</span> pd.to_datetime(</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>    df_modelo[<span class="st">"issue_d"</span>],</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>    <span class="bu">format</span><span class="op">=</span><span class="st">"%b-%Y"</span>,</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    errors<span class="op">=</span><span class="st">"coerce"</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>df_modelo[<span class="st">"fecha_primer_credito"</span>] <span class="op">=</span> pd.to_datetime(</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>    df_modelo[<span class="st">"earliest_cr_line"</span>],</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">format</span><span class="op">=</span><span class="st">"%b-%Y"</span>,</span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>    errors<span class="op">=</span><span class="st">"coerce"</span></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>df_modelo[<span class="st">"antiguedad_crediticia_anios"</span>] <span class="op">=</span> (</span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>    (</span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>        df_modelo[<span class="st">"fecha_emision"</span>] <span class="op">-</span></span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a>        df_modelo[<span class="st">"fecha_primer_credito"</span>]</span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a>    ).dt.days <span class="op">/</span> <span class="fl">365.25</span></span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Fechas de emisión no reconocidas:"</span>,</span>
+<span id="cb22-21"><a href="#cb22-21" aria-hidden="true" tabindex="-1"></a>      df_modelo[<span class="st">"fecha_emision"</span>].isna().<span class="bu">sum</span>())</span>
+<span id="cb22-22"><a href="#cb22-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-23"><a href="#cb22-23" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Fechas de primer crédito no reconocidas:"</span>,</span>
+<span id="cb22-24"><a href="#cb22-24" aria-hidden="true" tabindex="-1"></a>      df_modelo[<span class="st">"fecha_primer_credito"</span>].isna().<span class="bu">sum</span>())</span>
+<span id="cb22-25"><a href="#cb22-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-26"><a href="#cb22-26" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Antigüedades crediticias negativas:"</span>,</span>
+<span id="cb22-27"><a href="#cb22-27" aria-hidden="true" tabindex="-1"></a>      (df_modelo[<span class="st">"antiguedad_crediticia_anios"</span>] <span class="op">&lt;</span> <span class="dv">0</span>).<span class="bu">sum</span>())</span>
+<span id="cb22-28"><a href="#cb22-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-29"><a href="#cb22-29" aria-hidden="true" tabindex="-1"></a>display(</span>
+<span id="cb22-30"><a href="#cb22-30" aria-hidden="true" tabindex="-1"></a>    df_modelo[</span>
+<span id="cb22-31"><a href="#cb22-31" aria-hidden="true" tabindex="-1"></a>        [</span>
+<span id="cb22-32"><a href="#cb22-32" aria-hidden="true" tabindex="-1"></a>            <span class="st">"fecha_emision"</span>,</span>
+<span id="cb22-33"><a href="#cb22-33" aria-hidden="true" tabindex="-1"></a>            <span class="st">"fecha_primer_credito"</span>,</span>
+<span id="cb22-34"><a href="#cb22-34" aria-hidden="true" tabindex="-1"></a>            <span class="st">"antiguedad_crediticia_anios"</span></span>
+<span id="cb22-35"><a href="#cb22-35" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb22-36"><a href="#cb22-36" aria-hidden="true" tabindex="-1"></a>    ].head()</span>
+<span id="cb22-37"><a href="#cb22-37" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Fechas de emisión no reconocidas: 0
+Fechas de primer crédito no reconocidas: 0
+Antigüedades crediticias negativas: 0</code></pre>
+</div>
+<div id="transformar-fechas" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">fecha_emision</th>
+<th data-quarto-table-cell-role="th">fecha_primer_credito</th>
+<th data-quarto-table-cell-role="th">antiguedad_crediticia_anios</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">100</th>
+<td>2018-12-01</td>
+<td>2012-01-01</td>
+<td>6.915811</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">152</th>
+<td>2018-12-01</td>
+<td>2009-06-01</td>
+<td>9.500342</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">170</th>
+<td>2018-12-01</td>
+<td>1999-02-01</td>
+<td>19.830253</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">186</th>
+<td>2018-12-01</td>
+<td>2003-12-01</td>
+<td>15.000684</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">215</th>
+<td>2018-12-01</td>
+<td>1997-10-01</td>
+<td>21.166324</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="b.13.3-antigüedad-laboral" class="level3">
+<h3 class="anchored" data-anchor-id="b.13.3-antigüedad-laboral">B.13.3 Antigüedad laboral</h3>
+<p>La variable <code>emp_length</code> contiene categorías como <code>&lt; 1 year</code>, <code>1 year</code> y <code>10+ years</code>.</p>
+<p>Para preservar su significado original, se conserva como variable categórica y los valores faltantes se identifican explícitamente.</p>
+<div id="cell-transformar-antiguedad-laboral" class="cell" data-execution_count="15">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>df_modelo[<span class="st">"emp_length_categoria"</span>] <span class="op">=</span> (</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>    df_modelo[<span class="st">"emp_length"</span>]</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>    .fillna(<span class="st">"No informado"</span>)</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>display(</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>    df_modelo[<span class="st">"emp_length_categoria"</span>]</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>    .value_counts()</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>    .to_frame(<span class="st">"Cantidad"</span>)</span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="transformar-antiguedad-laboral" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Cantidad</th>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">emp_length_categoria</th>
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">10+ years</th>
+<td>428547</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">2 years</th>
+<td>117820</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">&lt; 1 year</th>
+<td>104550</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3 years</th>
+<td>104200</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">1 year</th>
+<td>85677</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">5 years</th>
+<td>81623</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4 years</th>
+<td>78029</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">No informado</th>
+<td>75454</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">6 years</th>
+<td>60933</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">8 years</th>
+<td>59125</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">7 years</th>
+<td>58145</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">9 years</th>
+<td>49504</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>No se modifica la variable original. La nueva columna permite distinguir entre información disponible e información no declarada.</p>
+</section>
+</section>
+<section id="b.14-separación-de-entrenamiento-y-prueba" class="level2">
+<h2 class="anchored" data-anchor-id="b.14-separación-de-entrenamiento-y-prueba">B.14 Separación de entrenamiento y prueba</h2>
+<p>Se realiza una división cronológica utilizando la fecha de emisión del préstamo.</p>
+<p>Esta estrategia permite evaluar el modelo sobre préstamos originados después de aquellos utilizados para entrenarlo.</p>
+<div id="division-temporal" class="cell" data-execution_count="16">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>df_temporal <span class="op">=</span> df_modelo.dropna(</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>    subset<span class="op">=</span>[<span class="st">"fecha_emision"</span>]</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>).sort_values(<span class="st">"fecha_emision"</span>).copy()</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>fechas <span class="op">=</span> df_temporal[<span class="st">"fecha_emision"</span>].drop_duplicates().sort_values()</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>fecha_corte <span class="op">=</span> fechas.iloc[<span class="bu">int</span>(<span class="bu">len</span>(fechas) <span class="op">*</span> <span class="fl">0.8</span>)]</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>entrenamiento <span class="op">=</span> df_temporal.loc[</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>    df_temporal[<span class="st">"fecha_emision"</span>] <span class="op">&lt;</span> fecha_corte</span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>].copy()</span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>prueba <span class="op">=</span> df_temporal.loc[</span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>    df_temporal[<span class="st">"fecha_emision"</span>] <span class="op">&gt;=</span> fecha_corte</span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>].copy()</span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Fecha de corte:"</span>, fecha_corte)</span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Entrenamiento:"</span>, <span class="bu">len</span>(entrenamiento))</span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Prueba:"</span>, <span class="bu">len</span>(prueba))</span>
+<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(</span>
+<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Porcentaje de incumplimiento en entrenamiento:"</span>,</span>
+<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>    <span class="bu">round</span>(entrenamiento[<span class="st">"incumplimiento"</span>].mean() <span class="op">*</span> <span class="dv">100</span>, <span class="dv">2</span>),</span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>    <span class="st">"%"</span></span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(</span>
+<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Porcentaje de incumplimiento en prueba:"</span>,</span>
+<span id="cb25-29"><a href="#cb25-29" aria-hidden="true" tabindex="-1"></a>    <span class="bu">round</span>(prueba[<span class="st">"incumplimiento"</span>].mean() <span class="op">*</span> <span class="dv">100</span>, <span class="dv">2</span>),</span>
+<span id="cb25-30"><a href="#cb25-30" aria-hidden="true" tabindex="-1"></a>    <span class="st">"%"</span></span>
+<span id="cb25-31"><a href="#cb25-31" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Fecha de corte: 2016-09-01 00:00:00
+Entrenamiento: 1026281
+Prueba: 277326
+Porcentaje de incumplimiento en entrenamiento: 19.59 %
+Porcentaje de incumplimiento en prueba: 21.85 %</code></pre>
+</div>
+</div>
+<p>La separación se realiza antes de calcular las estadísticas de imputación para evitar que la información del conjunto de prueba influya en el entrenamiento.</p>
+</section>
+<section id="b.15-imputación-de-valores-faltantes" class="level2">
+<h2 class="anchored" data-anchor-id="b.15-imputación-de-valores-faltantes">B.15 Imputación de valores faltantes</h2>
+<p>Se utiliza la mediana del conjunto de entrenamiento para completar los valores faltantes de determinadas variables numéricas.</p>
+<p>La mediana es una medida robusta frente a valores extremos.</p>
+<div id="imputacion-numerica" class="cell" data-execution_count="17">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.impute <span class="im">import</span> SimpleImputer</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>columnas_imputacion <span class="op">=</span> [</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"mort_acc"</span>,</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"revol_util"</span>,</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"pub_rec_bankruptcies"</span>,</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"dti"</span>,</span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"inq_last_6mths"</span></span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>imputador <span class="op">=</span> SimpleImputer(strategy<span class="op">=</span><span class="st">"median"</span>)</span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>entrenamiento[columnas_imputacion] <span class="op">=</span> (</span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>    imputador.fit_transform(</span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>        entrenamiento[columnas_imputacion]</span>
+<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a>prueba[columnas_imputacion] <span class="op">=</span> (</span>
+<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a>    imputador.transform(</span>
+<span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a>        prueba[columnas_imputacion]</span>
+<span id="cb27-22"><a href="#cb27-22" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb27-23"><a href="#cb27-23" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb27-24"><a href="#cb27-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-25"><a href="#cb27-25" aria-hidden="true" tabindex="-1"></a>valores_imputacion <span class="op">=</span> pd.DataFrame({</span>
+<span id="cb27-26"><a href="#cb27-26" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Variable"</span>: columnas_imputacion,</span>
+<span id="cb27-27"><a href="#cb27-27" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mediana_entrenamiento"</span>: imputador.statistics_</span>
+<span id="cb27-28"><a href="#cb27-28" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb27-29"><a href="#cb27-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-30"><a href="#cb27-30" aria-hidden="true" tabindex="-1"></a>display(valores_imputacion)</span>
+<span id="cb27-31"><a href="#cb27-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-32"><a href="#cb27-32" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Nulos después de imputar:"</span>)</span>
+<span id="cb27-33"><a href="#cb27-33" aria-hidden="true" tabindex="-1"></a>display(</span>
+<span id="cb27-34"><a href="#cb27-34" aria-hidden="true" tabindex="-1"></a>    entrenamiento[columnas_imputacion]</span>
+<span id="cb27-35"><a href="#cb27-35" aria-hidden="true" tabindex="-1"></a>    .isna()</span>
+<span id="cb27-36"><a href="#cb27-36" aria-hidden="true" tabindex="-1"></a>    .<span class="bu">sum</span>()</span>
+<span id="cb27-37"><a href="#cb27-37" aria-hidden="true" tabindex="-1"></a>    .to_frame(<span class="st">"Entrenamiento"</span>)</span>
+<span id="cb27-38"><a href="#cb27-38" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="imputacion-numerica-1" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Variable</th>
+<th data-quarto-table-cell-role="th">Mediana_entrenamiento</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>mort_acc</td>
+<td>1.00</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>revol_util</td>
+<td>54.30</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>pub_rec_bankruptcies</td>
+<td>0.00</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>dti</td>
+<td>17.61</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>inq_last_6mths</td>
+<td>0.00</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Nulos después de imputar:</code></pre>
+</div>
+<div id="imputacion-numerica-2" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Entrenamiento</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">mort_acc</th>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">revol_util</th>
+<td>0</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">pub_rec_bankruptcies</th>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">dti</th>
+<td>0</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">inq_last_6mths</th>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>El imputador aprende las medianas exclusivamente del conjunto de entrenamiento y aplica esos mismos valores al conjunto de prueba.</p>
+<p>Esto evita utilizar información del conjunto de evaluación para preparar los datos de entrenamiento.</p>
+</section>
+<section id="b.16-análisis-de-valores-atípicos" class="level2">
+<h2 class="anchored" data-anchor-id="b.16-análisis-de-valores-atípicos">B.16 Análisis de valores atípicos</h2>
+<p>Los valores atípicos son observaciones que se alejan considerablemente del comportamiento general de una variable.</p>
+<p>En el contexto financiero, un valor extremo no necesariamente representa un error. Por ello, primero se estudiarán las distribuciones y los rangos de las variables numéricas seleccionadas.</p>
+<section id="b.16.1-estadísticas-descriptivas-y-percentiles" class="level3">
+<h3 class="anchored" data-anchor-id="b.16.1-estadísticas-descriptivas-y-percentiles">B.16.1 Estadísticas descriptivas y percentiles</h3>
+<p>Se calculan percentiles para identificar la concentración de los datos y la magnitud de los valores extremos.</p>
+<div id="cell-percentiles-financieros" class="cell" data-execution_count="18">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>variables_atipicas <span class="op">=</span> [</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"annual_inc"</span>,</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"dti"</span>,</span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"loan_amnt"</span>,</span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"int_rate"</span>,</span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"installment"</span>,</span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"revol_util"</span></span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>percentiles <span class="op">=</span> entrenamiento[</span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>    variables_atipicas</span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a>].describe(</span>
+<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a>    percentiles<span class="op">=</span>[<span class="fl">0.01</span>, <span class="fl">0.05</span>, <span class="fl">0.25</span>, <span class="fl">0.5</span>,</span>
+<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a>                 <span class="fl">0.75</span>, <span class="fl">0.95</span>, <span class="fl">0.99</span>]</span>
+<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a>).T</span>
+<span id="cb29-16"><a href="#cb29-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a>display(percentiles.<span class="bu">round</span>(<span class="dv">2</span>))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="percentiles-financieros" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">count</th>
+<th data-quarto-table-cell-role="th">mean</th>
+<th data-quarto-table-cell-role="th">std</th>
+<th data-quarto-table-cell-role="th">min</th>
+<th data-quarto-table-cell-role="th">1%</th>
+<th data-quarto-table-cell-role="th">5%</th>
+<th data-quarto-table-cell-role="th">25%</th>
+<th data-quarto-table-cell-role="th">50%</th>
+<th data-quarto-table-cell-role="th">75%</th>
+<th data-quarto-table-cell-role="th">95%</th>
+<th data-quarto-table-cell-role="th">99%</th>
+<th data-quarto-table-cell-role="th">max</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">annual_inc</th>
+<td>1026281.0</td>
+<td>75316.36</td>
+<td>67664.42</td>
+<td>0.00</td>
+<td>18500.00</td>
+<td>28000.00</td>
+<td>45000.00</td>
+<td>65000.00</td>
+<td>90000.00</td>
+<td>150500.00</td>
+<td>250000.00</td>
+<td>9550000.00</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">dti</th>
+<td>1026281.0</td>
+<td>18.15</td>
+<td>8.69</td>
+<td>-1.00</td>
+<td>1.94</td>
+<td>5.13</td>
+<td>11.85</td>
+<td>17.61</td>
+<td>23.98</td>
+<td>32.87</td>
+<td>37.90</td>
+<td>999.00</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">loan_amnt</th>
+<td>1026281.0</td>
+<td>14438.50</td>
+<td>8470.75</td>
+<td>500.00</td>
+<td>1800.00</td>
+<td>3500.00</td>
+<td>8000.00</td>
+<td>12000.00</td>
+<td>20000.00</td>
+<td>32000.00</td>
+<td>35000.00</td>
+<td>40000.00</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">int_rate</th>
+<td>1026281.0</td>
+<td>13.08</td>
+<td>4.52</td>
+<td>5.32</td>
+<td>5.32</td>
+<td>6.49</td>
+<td>9.67</td>
+<td>12.69</td>
+<td>15.80</td>
+<td>21.18</td>
+<td>25.28</td>
+<td>30.99</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">installment</th>
+<td>1026281.0</td>
+<td>437.45</td>
+<td>253.00</td>
+<td>4.93</td>
+<td>58.62</td>
+<td>116.34</td>
+<td>253.50</td>
+<td>378.20</td>
+<td>577.36</td>
+<td>938.71</td>
+<td>1198.94</td>
+<td>1569.11</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">revol_util</th>
+<td>1026281.0</td>
+<td>53.69</td>
+<td>24.03</td>
+<td>0.00</td>
+<td>1.80</td>
+<td>12.60</td>
+<td>36.00</td>
+<td>54.30</td>
+<td>72.20</td>
+<td>92.00</td>
+<td>98.30</td>
+<td>892.30</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="b.16.2-detección-mediante-el-rango-intercuartílico" class="level3">
+<h3 class="anchored" data-anchor-id="b.16.2-detección-mediante-el-rango-intercuartílico">B.16.2 Detección mediante el rango intercuartílico</h3>
+<p>Se utiliza el rango intercuartílico (IQR) como criterio exploratorio para identificar valores alejados de la distribución central.</p>
+<p>Este procedimiento no implica eliminar automáticamente las observaciones detectadas.</p>
+<div id="cell-deteccion-iqr" class="cell" data-execution_count="19">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>resultados_iqr <span class="op">=</span> []</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> variable <span class="kw">in</span> variables_atipicas:</span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>    serie <span class="op">=</span> entrenamiento[variable].dropna()</span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>    q1 <span class="op">=</span> serie.quantile(<span class="fl">0.25</span>)</span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>    q3 <span class="op">=</span> serie.quantile(<span class="fl">0.75</span>)</span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a>    iqr <span class="op">=</span> q3 <span class="op">-</span> q1</span>
+<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a>    limite_inferior <span class="op">=</span> q1 <span class="op">-</span> <span class="fl">1.5</span> <span class="op">*</span> iqr</span>
+<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a>    limite_superior <span class="op">=</span> q3 <span class="op">+</span> <span class="fl">1.5</span> <span class="op">*</span> iqr</span>
+<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a>    atipicos <span class="op">=</span> (</span>
+<span id="cb30-15"><a href="#cb30-15" aria-hidden="true" tabindex="-1"></a>        (serie <span class="op">&lt;</span> limite_inferior) <span class="op">|</span></span>
+<span id="cb30-16"><a href="#cb30-16" aria-hidden="true" tabindex="-1"></a>        (serie <span class="op">&gt;</span> limite_superior)</span>
+<span id="cb30-17"><a href="#cb30-17" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb30-18"><a href="#cb30-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-19"><a href="#cb30-19" aria-hidden="true" tabindex="-1"></a>    resultados_iqr.append({</span>
+<span id="cb30-20"><a href="#cb30-20" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Variable"</span>: variable,</span>
+<span id="cb30-21"><a href="#cb30-21" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Limite_inferior"</span>: limite_inferior,</span>
+<span id="cb30-22"><a href="#cb30-22" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Limite_superior"</span>: limite_superior,</span>
+<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Cantidad_atipicos"</span>: <span class="bu">int</span>(atipicos.<span class="bu">sum</span>()),</span>
+<span id="cb30-24"><a href="#cb30-24" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Porcentaje_atipicos"</span>: (</span>
+<span id="cb30-25"><a href="#cb30-25" aria-hidden="true" tabindex="-1"></a>            atipicos.mean() <span class="op">*</span> <span class="dv">100</span></span>
+<span id="cb30-26"><a href="#cb30-26" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb30-27"><a href="#cb30-27" aria-hidden="true" tabindex="-1"></a>    })</span>
+<span id="cb30-28"><a href="#cb30-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-29"><a href="#cb30-29" aria-hidden="true" tabindex="-1"></a>tabla_iqr <span class="op">=</span> pd.DataFrame(resultados_iqr)</span>
+<span id="cb30-30"><a href="#cb30-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-31"><a href="#cb30-31" aria-hidden="true" tabindex="-1"></a>display(tabla_iqr.<span class="bu">round</span>(<span class="dv">2</span>))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="deteccion-iqr" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Variable</th>
+<th data-quarto-table-cell-role="th">Limite_inferior</th>
+<th data-quarto-table-cell-role="th">Limite_superior</th>
+<th data-quarto-table-cell-role="th">Cantidad_atipicos</th>
+<th data-quarto-table-cell-role="th">Porcentaje_atipicos</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>annual_inc</td>
+<td>-22500.00</td>
+<td>157500.00</td>
+<td>47111</td>
+<td>4.59</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>dti</td>
+<td>-6.35</td>
+<td>42.18</td>
+<td>1527</td>
+<td>0.15</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>loan_amnt</td>
+<td>-10000.00</td>
+<td>38000.00</td>
+<td>1172</td>
+<td>0.11</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>int_rate</td>
+<td>0.47</td>
+<td>25.00</td>
+<td>10655</td>
+<td>1.04</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>installment</td>
+<td>-232.29</td>
+<td>1063.15</td>
+<td>29371</td>
+<td>2.86</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">5</th>
+<td>revol_util</td>
+<td>-18.30</td>
+<td>126.50</td>
+<td>61</td>
+<td>0.01</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="b.16.3-revisión-de-valores-potencialmente-inválidos" class="level3">
+<h3 class="anchored" data-anchor-id="b.16.3-revisión-de-valores-potencialmente-inválidos">B.16.3 Revisión de valores potencialmente inválidos</h3>
+<p>Se examinan valores negativos y rangos que requieren una interpretación específica.</p>
+<div id="cell-revision-inconsistencias" class="cell" data-execution_count="20">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>revisiones <span class="op">=</span> {</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"annual_inc negativo"</span>:</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>        (entrenamiento[<span class="st">"annual_inc"</span>] <span class="op">&lt;</span> <span class="dv">0</span>).<span class="bu">sum</span>(),</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"annual_inc igual a cero"</span>:</span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>        (entrenamiento[<span class="st">"annual_inc"</span>] <span class="op">==</span> <span class="dv">0</span>).<span class="bu">sum</span>(),</span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"dti negativo"</span>:</span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>        (entrenamiento[<span class="st">"dti"</span>] <span class="op">&lt;</span> <span class="dv">0</span>).<span class="bu">sum</span>(),</span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"dti mayor a 100"</span>:</span>
+<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a>        (entrenamiento[<span class="st">"dti"</span>] <span class="op">&gt;</span> <span class="dv">100</span>).<span class="bu">sum</span>(),</span>
+<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"revol_util negativo"</span>:</span>
+<span id="cb31-15"><a href="#cb31-15" aria-hidden="true" tabindex="-1"></a>        (entrenamiento[<span class="st">"revol_util"</span>] <span class="op">&lt;</span> <span class="dv">0</span>).<span class="bu">sum</span>(),</span>
+<span id="cb31-16"><a href="#cb31-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-17"><a href="#cb31-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">"revol_util mayor a 100"</span>:</span>
+<span id="cb31-18"><a href="#cb31-18" aria-hidden="true" tabindex="-1"></a>        (entrenamiento[<span class="st">"revol_util"</span>] <span class="op">&gt;</span> <span class="dv">100</span>).<span class="bu">sum</span>(),</span>
+<span id="cb31-19"><a href="#cb31-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-20"><a href="#cb31-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">"loan_amnt no positivo"</span>:</span>
+<span id="cb31-21"><a href="#cb31-21" aria-hidden="true" tabindex="-1"></a>        (entrenamiento[<span class="st">"loan_amnt"</span>] <span class="op">&lt;=</span> <span class="dv">0</span>).<span class="bu">sum</span>()</span>
+<span id="cb31-22"><a href="#cb31-22" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb31-23"><a href="#cb31-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-24"><a href="#cb31-24" aria-hidden="true" tabindex="-1"></a>display(</span>
+<span id="cb31-25"><a href="#cb31-25" aria-hidden="true" tabindex="-1"></a>    pd.DataFrame(</span>
+<span id="cb31-26"><a href="#cb31-26" aria-hidden="true" tabindex="-1"></a>        revisiones.items(),</span>
+<span id="cb31-27"><a href="#cb31-27" aria-hidden="true" tabindex="-1"></a>        columns<span class="op">=</span>[<span class="st">"Condicion"</span>, <span class="st">"Cantidad"</span>]</span>
+<span id="cb31-28"><a href="#cb31-28" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb31-29"><a href="#cb31-29" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="revision-inconsistencias" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Condicion</th>
+<th data-quarto-table-cell-role="th">Cantidad</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>annual_inc negativo</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>annual_inc igual a cero</td>
+<td>19</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>dti negativo</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>dti mayor a 100</td>
+<td>45</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>revol_util negativo</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">5</th>
+<td>revol_util mayor a 100</td>
+<td>3788</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">6</th>
+<td>loan_amnt no positivo</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Los valores detectados deberán revisarse antes de establecer reglas de corrección, transformación o exclusión.</p>
+</section>
+</section>
+<section id="b.17-evaluación-de-valores-extremos" class="level2">
+<h2 class="anchored" data-anchor-id="b.17-evaluación-de-valores-extremos">B.17 Evaluación de valores extremos</h2>
+<p>Antes de modificar los valores atípicos, se examinan las observaciones más extremas para determinar si corresponden a valores plausibles, casos especiales o posibles errores de registro.</p>
+<section id="b.17.1-observaciones-extremas" class="level3">
+<h3 class="anchored" data-anchor-id="b.17.1-observaciones-extremas">B.17.1 Observaciones extremas</h3>
+<div id="revision-extremos" class="cell" data-execution_count="21">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>variables_revision <span class="op">=</span> [</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"annual_inc"</span>,</span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"dti"</span>,</span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"revol_util"</span></span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a>columnas_contexto <span class="op">=</span> [</span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"loan_amnt"</span>,</span>
+<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"annual_inc"</span>,</span>
+<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"dti"</span>,</span>
+<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"revol_util"</span>,</span>
+<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"int_rate"</span>,</span>
+<span id="cb32-13"><a href="#cb32-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"incumplimiento"</span></span>
+<span id="cb32-14"><a href="#cb32-14" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb32-15"><a href="#cb32-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-16"><a href="#cb32-16" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> variable <span class="kw">in</span> variables_revision:</span>
+<span id="cb32-17"><a href="#cb32-17" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Valores más altos de </span><span class="sc">{</span>variable<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb32-18"><a href="#cb32-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-19"><a href="#cb32-19" aria-hidden="true" tabindex="-1"></a>    display(</span>
+<span id="cb32-20"><a href="#cb32-20" aria-hidden="true" tabindex="-1"></a>        entrenamiento.nlargest(</span>
+<span id="cb32-21"><a href="#cb32-21" aria-hidden="true" tabindex="-1"></a>            <span class="dv">10</span>, variable</span>
+<span id="cb32-22"><a href="#cb32-22" aria-hidden="true" tabindex="-1"></a>        )[columnas_contexto]</span>
+<span id="cb32-23"><a href="#cb32-23" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Valores más altos de annual_inc</code></pre>
+</div>
+<div id="revision-extremos-1" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">loan_amnt</th>
+<th data-quarto-table-cell-role="th">annual_inc</th>
+<th data-quarto-table-cell-role="th">dti</th>
+<th data-quarto-table-cell-role="th">revol_util</th>
+<th data-quarto-table-cell-role="th">int_rate</th>
+<th data-quarto-table-cell-role="th">incumplimiento</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">714651</th>
+<td>30000</td>
+<td>9550000.0</td>
+<td>0.07</td>
+<td>0.9</td>
+<td>7.89</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1160644</th>
+<td>24000</td>
+<td>9500000.0</td>
+<td>0.12</td>
+<td>22.0</td>
+<td>7.89</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">681275</th>
+<td>11600</td>
+<td>9225000.0</td>
+<td>0.11</td>
+<td>14.9</td>
+<td>15.31</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">970097</th>
+<td>11000</td>
+<td>9000000.0</td>
+<td>0.08</td>
+<td>33.8</td>
+<td>6.89</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">1147034</th>
+<td>10550</td>
+<td>8900060.0</td>
+<td>0.09</td>
+<td>102.1</td>
+<td>15.61</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1330429</th>
+<td>8000</td>
+<td>8706582.0</td>
+<td>0.11</td>
+<td>54.1</td>
+<td>13.66</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">954058</th>
+<td>14000</td>
+<td>8700000.0</td>
+<td>0.18</td>
+<td>44.9</td>
+<td>10.64</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">977645</th>
+<td>12000</td>
+<td>8500021.0</td>
+<td>0.22</td>
+<td>88.9</td>
+<td>9.17</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">554941</th>
+<td>30000</td>
+<td>8400000.0</td>
+<td>0.31</td>
+<td>101.6</td>
+<td>13.49</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1015700</th>
+<td>30000</td>
+<td>8253000.0</td>
+<td>0.14</td>
+<td>61.5</td>
+<td>12.69</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Valores más altos de dti</code></pre>
+</div>
+<div id="revision-extremos-2" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">loan_amnt</th>
+<th data-quarto-table-cell-role="th">annual_inc</th>
+<th data-quarto-table-cell-role="th">dti</th>
+<th data-quarto-table-cell-role="th">revol_util</th>
+<th data-quarto-table-cell-role="th">int_rate</th>
+<th data-quarto-table-cell-role="th">incumplimiento</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">938145</th>
+<td>6550</td>
+<td>1770.0</td>
+<td>999.00</td>
+<td>84.4</td>
+<td>17.86</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">626147</th>
+<td>24000</td>
+<td>600.0</td>
+<td>999.00</td>
+<td>58.5</td>
+<td>9.16</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">653193</th>
+<td>35000</td>
+<td>3000.0</td>
+<td>822.00</td>
+<td>84.9</td>
+<td>17.27</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">641270</th>
+<td>35000</td>
+<td>1000.0</td>
+<td>818.10</td>
+<td>35.9</td>
+<td>9.75</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">1003835</th>
+<td>12000</td>
+<td>1200.0</td>
+<td>672.52</td>
+<td>72.2</td>
+<td>19.99</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">731604</th>
+<td>28000</td>
+<td>5000.0</td>
+<td>447.60</td>
+<td>100.4</td>
+<td>15.31</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">996207</th>
+<td>19000</td>
+<td>5000.0</td>
+<td>380.53</td>
+<td>33.3</td>
+<td>16.99</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">747275</th>
+<td>8000</td>
+<td>1104.0</td>
+<td>321.74</td>
+<td>17.9</td>
+<td>11.99</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">770216</th>
+<td>13000</td>
+<td>8000.0</td>
+<td>262.16</td>
+<td>72.9</td>
+<td>11.99</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">780684</th>
+<td>27500</td>
+<td>9500.0</td>
+<td>241.59</td>
+<td>60.5</td>
+<td>9.16</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Valores más altos de revol_util</code></pre>
+</div>
+<div id="revision-extremos-3" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">loan_amnt</th>
+<th data-quarto-table-cell-role="th">annual_inc</th>
+<th data-quarto-table-cell-role="th">dti</th>
+<th data-quarto-table-cell-role="th">revol_util</th>
+<th data-quarto-table-cell-role="th">int_rate</th>
+<th data-quarto-table-cell-role="th">incumplimiento</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2039647</th>
+<td>3500</td>
+<td>45000.0</td>
+<td>14.67</td>
+<td>892.3</td>
+<td>12.49</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">2001302</th>
+<td>16500</td>
+<td>48000.0</td>
+<td>9.33</td>
+<td>366.6</td>
+<td>14.49</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">1134779</th>
+<td>35000</td>
+<td>175000.0</td>
+<td>5.18</td>
+<td>193.0</td>
+<td>16.99</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1344211</th>
+<td>28000</td>
+<td>200000.0</td>
+<td>15.61</td>
+<td>184.6</td>
+<td>12.99</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">1037828</th>
+<td>12000</td>
+<td>120000.0</td>
+<td>16.25</td>
+<td>182.8</td>
+<td>14.65</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1928918</th>
+<td>16000</td>
+<td>95000.0</td>
+<td>4.18</td>
+<td>180.3</td>
+<td>12.99</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">1953061</th>
+<td>15000</td>
+<td>130000.0</td>
+<td>11.00</td>
+<td>177.7</td>
+<td>16.29</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">795477</th>
+<td>28000</td>
+<td>67000.0</td>
+<td>28.01</td>
+<td>172.0</td>
+<td>6.99</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">774939</th>
+<td>10000</td>
+<td>70000.0</td>
+<td>16.96</td>
+<td>165.8</td>
+<td>11.99</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">642379</th>
+<td>8000</td>
+<td>53000.0</td>
+<td>16.39</td>
+<td>156.3</td>
+<td>20.99</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="b.17.2-frecuencia-de-casos-especiales" class="level3">
+<h3 class="anchored" data-anchor-id="b.17.2-frecuencia-de-casos-especiales">B.17.2 Frecuencia de casos especiales</h3>
+<p>Se cuantifican las observaciones que requieren una revisión adicional, sin modificar todavía sus valores.</p>
+<div id="cell-frecuencia-casos-especiales" class="cell" data-execution_count="22">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>condiciones <span class="op">=</span> {</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Ingreso anual igual a cero"</span>:</span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>        entrenamiento[<span class="st">"annual_inc"</span>] <span class="op">==</span> <span class="dv">0</span>,</span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"DTI negativo"</span>:</span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a>        entrenamiento[<span class="st">"dti"</span>] <span class="op">&lt;</span> <span class="dv">0</span>,</span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"DTI superior a 100"</span>:</span>
+<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a>        entrenamiento[<span class="st">"dti"</span>] <span class="op">&gt;</span> <span class="dv">100</span>,</span>
+<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Utilización revolvente superior a 100"</span>:</span>
+<span id="cb36-12"><a href="#cb36-12" aria-hidden="true" tabindex="-1"></a>        entrenamiento[<span class="st">"revol_util"</span>] <span class="op">&gt;</span> <span class="dv">100</span></span>
+<span id="cb36-13"><a href="#cb36-13" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb36-14"><a href="#cb36-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-15"><a href="#cb36-15" aria-hidden="true" tabindex="-1"></a>resultados <span class="op">=</span> []</span>
+<span id="cb36-16"><a href="#cb36-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-17"><a href="#cb36-17" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> nombre, mascara <span class="kw">in</span> condiciones.items():</span>
+<span id="cb36-18"><a href="#cb36-18" aria-hidden="true" tabindex="-1"></a>    resultados.append({</span>
+<span id="cb36-19"><a href="#cb36-19" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Condicion"</span>: nombre,</span>
+<span id="cb36-20"><a href="#cb36-20" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Registros"</span>: <span class="bu">int</span>(mascara.<span class="bu">sum</span>()),</span>
+<span id="cb36-21"><a href="#cb36-21" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Porcentaje"</span>: <span class="bu">round</span>(</span>
+<span id="cb36-22"><a href="#cb36-22" aria-hidden="true" tabindex="-1"></a>            mascara.mean() <span class="op">*</span> <span class="dv">100</span>, <span class="dv">4</span></span>
+<span id="cb36-23"><a href="#cb36-23" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb36-24"><a href="#cb36-24" aria-hidden="true" tabindex="-1"></a>    })</span>
+<span id="cb36-25"><a href="#cb36-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-26"><a href="#cb36-26" aria-hidden="true" tabindex="-1"></a>display(pd.DataFrame(resultados))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="frecuencia-casos-especiales" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Condicion</th>
+<th data-quarto-table-cell-role="th">Registros</th>
+<th data-quarto-table-cell-role="th">Porcentaje</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>Ingreso anual igual a cero</td>
+<td>19</td>
+<td>0.0019</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>DTI negativo</td>
+<td>1</td>
+<td>0.0001</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>DTI superior a 100</td>
+<td>45</td>
+<td>0.0044</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>Utilización revolvente superior a 100</td>
+<td>3788</td>
+<td>0.3691</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="b.18-tratamiento-de-valores-atípicos-y-transformaciones" class="level2">
+<h2 class="anchored" data-anchor-id="b.18-tratamiento-de-valores-atípicos-y-transformaciones">B.18 Tratamiento de valores atípicos y transformaciones</h2>
+<p>Las secciones anteriores identificaron observaciones extremas mediante percentiles, IQR y revisión de casos individuales. No se eliminarán automáticamente valores altos de ingreso, deuda-ingreso o utilización revolvente: un valor atípico estadístico no implica necesariamente un error de registro.</p>
+<p>Se mantienen intactas las columnas originales del archivo fuente. Las modificaciones se aplican sobre los subconjuntos <code>entrenamiento</code> y <code>prueba</code>, previamente separados de manera cronológica.</p>
+<section id="b.18.1-registro-de-decisiones" class="level3">
+<h3 class="anchored" data-anchor-id="b.18.1-registro-de-decisiones">B.18.1 Registro de decisiones</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Variable</th>
+<th>Decisión</th>
+<th>Justificación</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>annual_inc</code></td>
+<td>Conservar y generar <code>log_annual_inc</code></td>
+<td>Los ingresos elevados pueden ser válidos; la transformación reduce la asimetría.</td>
+</tr>
+<tr class="even">
+<td><code>dti</code></td>
+<td>Tratar valores negativos como faltantes e imputar con la mediana válida del entrenamiento</td>
+<td>Un DTI negativo requiere tratamiento diferenciado; los valores positivos altos se conservan.</td>
+</tr>
+<tr class="odd">
+<td><code>revol_util</code></td>
+<td>Conservar valores superiores a 100</td>
+<td>Pueden reflejar saldos que exceden el crédito disponible.</td>
+</tr>
+<tr class="even">
+<td><code>loan_amnt</code>, <code>int_rate</code>, <code>installment</code></td>
+<td>Conservar valores observados</td>
+<td>El criterio IQR por sí solo no demuestra errores.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="b.18.2-identificación-y-tratamiento-de-dti-negativo" class="level3">
+<h3 class="anchored" data-anchor-id="b.18.2-identificación-y-tratamiento-de-dti-negativo">B.18.2 Identificación y tratamiento de DTI negativo</h3>
+<p>Se registra un indicador de valores negativos antes de reemplazarlos. La mediana de referencia se obtiene <strong>solo de valores no negativos del entrenamiento</strong> y se aplica a ambos subconjuntos.</p>
+<div id="cell-tratamiento-dti" class="cell" data-execution_count="23">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> conjunto <span class="kw">in</span> (entrenamiento, prueba):</span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>    conjunto[<span class="st">"dti_negativo_original"</span>] <span class="op">=</span> (</span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>        conjunto[<span class="st">"dti"</span>] <span class="op">&lt;</span> <span class="dv">0</span></span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>    ).astype(<span class="st">"int8"</span>)</span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a>mediana_dti_valida <span class="op">=</span> entrenamiento.loc[</span>
+<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a>    entrenamiento[<span class="st">"dti"</span>] <span class="op">&gt;=</span> <span class="dv">0</span>, <span class="st">"dti"</span></span>
+<span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a>].median()</span>
+<span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-10"><a href="#cb37-10" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> pd.isna(mediana_dti_valida):</span>
+<span id="cb37-11"><a href="#cb37-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="st">"No hay valores válidos para calcular la mediana de DTI"</span>)</span>
+<span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-13"><a href="#cb37-13" aria-hidden="true" tabindex="-1"></a>resumen_dti <span class="op">=</span> []</span>
+<span id="cb37-14"><a href="#cb37-14" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> nombre, conjunto <span class="kw">in</span> ((<span class="st">"Entrenamiento"</span>, entrenamiento), (<span class="st">"Prueba"</span>, prueba)):</span>
+<span id="cb37-15"><a href="#cb37-15" aria-hidden="true" tabindex="-1"></a>    negativos <span class="op">=</span> <span class="bu">int</span>((conjunto[<span class="st">"dti"</span>] <span class="op">&lt;</span> <span class="dv">0</span>).<span class="bu">sum</span>())</span>
+<span id="cb37-16"><a href="#cb37-16" aria-hidden="true" tabindex="-1"></a>    conjunto.loc[conjunto[<span class="st">"dti"</span>] <span class="op">&lt;</span> <span class="dv">0</span>, <span class="st">"dti"</span>] <span class="op">=</span> np.nan</span>
+<span id="cb37-17"><a href="#cb37-17" aria-hidden="true" tabindex="-1"></a>    conjunto[<span class="st">"dti"</span>] <span class="op">=</span> conjunto[<span class="st">"dti"</span>].fillna(mediana_dti_valida)</span>
+<span id="cb37-18"><a href="#cb37-18" aria-hidden="true" tabindex="-1"></a>    resumen_dti.append({</span>
+<span id="cb37-19"><a href="#cb37-19" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Conjunto"</span>: nombre,</span>
+<span id="cb37-20"><a href="#cb37-20" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Negativos_tratados"</span>: negativos,</span>
+<span id="cb37-21"><a href="#cb37-21" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Nulos_restantes"</span>: <span class="bu">int</span>(conjunto[<span class="st">"dti"</span>].isna().<span class="bu">sum</span>())</span>
+<span id="cb37-22"><a href="#cb37-22" aria-hidden="true" tabindex="-1"></a>    })</span>
+<span id="cb37-23"><a href="#cb37-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-24"><a href="#cb37-24" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Mediana válida de DTI (entrenamiento):"</span>, <span class="bu">round</span>(mediana_dti_valida, <span class="dv">2</span>))</span>
+<span id="cb37-25"><a href="#cb37-25" aria-hidden="true" tabindex="-1"></a>display(pd.DataFrame(resumen_dti))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Mediana válida de DTI (entrenamiento): 17.61</code></pre>
+</div>
+<div id="tratamiento-dti" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Conjunto</th>
+<th data-quarto-table-cell-role="th">Negativos_tratados</th>
+<th data-quarto-table-cell-role="th">Nulos_restantes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>Entrenamiento</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>Prueba</td>
+<td>1</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p><strong>Nota metodológica:</strong> en B.15 ya se habían imputado los DTI originalmente faltantes. Aquí se corrigen exclusivamente los valores negativos que aún permanecían. Para un pipeline de modelado definitivo, ambos tratamientos se integrarán en un único proceso ajustado con entrenamiento.</p>
+</section>
+<section id="b.18.3-transformación-logarítmica-del-ingreso-anual" class="level3">
+<h3 class="anchored" data-anchor-id="b.18.3-transformación-logarítmica-del-ingreso-anual">B.18.3 Transformación logarítmica del ingreso anual</h3>
+<p>El ingreso anual presenta una distribución asimétrica. Se crea una característica transformada mediante <code>log1p(x) = ln(1 + x)</code>, que admite ingresos iguales a cero. Los valores originales se conservan para facilitar la interpretación económica.</p>
+<div id="cell-transformacion-ingresos" class="cell" data-execution_count="24">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> nombre, conjunto <span class="kw">in</span> ((<span class="st">"Entrenamiento"</span>, entrenamiento), (<span class="st">"Prueba"</span>, prueba)):</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>    negativos <span class="op">=</span> <span class="bu">int</span>((conjunto[<span class="st">"annual_inc"</span>] <span class="op">&lt;</span> <span class="dv">0</span>).<span class="bu">sum</span>())</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>    faltantes <span class="op">=</span> <span class="bu">int</span>(conjunto[<span class="st">"annual_inc"</span>].isna().<span class="bu">sum</span>())</span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>nombre<span class="sc">}</span><span class="ss">: ingresos negativos=</span><span class="sc">{</span>negativos<span class="sc">}</span><span class="ss">, faltantes=</span><span class="sc">{</span>faltantes<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> negativos:</span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="st">"Existen ingresos negativos; revisar antes de aplicar log1p"</span>)</span>
+<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a>    conjunto[<span class="st">"log_annual_inc"</span>] <span class="op">=</span> np.log1p(conjunto[<span class="st">"annual_inc"</span>])</span>
+<span id="cb39-8"><a href="#cb39-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-9"><a href="#cb39-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Resumen de ingresos originales y transformados (entrenamiento):"</span>)</span>
+<span id="cb39-10"><a href="#cb39-10" aria-hidden="true" tabindex="-1"></a>display(entrenamiento[[<span class="st">"annual_inc"</span>, <span class="st">"log_annual_inc"</span>]].describe().<span class="bu">round</span>(<span class="dv">3</span>))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Entrenamiento: ingresos negativos=0, faltantes=0
+Prueba: ingresos negativos=0, faltantes=0
+Resumen de ingresos originales y transformados (entrenamiento):</code></pre>
+</div>
+<div id="transformacion-ingresos" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">annual_inc</th>
+<th data-quarto-table-cell-role="th">log_annual_inc</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">count</th>
+<td>1026281.000</td>
+<td>1026281.000</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">mean</th>
+<td>75316.363</td>
+<td>11.076</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">std</th>
+<td>67664.420</td>
+<td>0.535</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">min</th>
+<td>0.000</td>
+<td>0.000</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">25%</th>
+<td>45000.000</td>
+<td>10.714</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">50%</th>
+<td>65000.000</td>
+<td>11.082</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">75%</th>
+<td>90000.000</td>
+<td>11.408</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">max</th>
+<td>9550000.000</td>
+<td>16.072</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="b.18.4-comparación-visual-de-distribuciones" class="level3">
+<h3 class="anchored" data-anchor-id="b.18.4-comparación-visual-de-distribuciones">B.18.4 Comparación visual de distribuciones</h3>
+<p>Para evitar graficar más de un millón de puntos, se utiliza una muestra reproducible del entrenamiento. Esta muestra se emplea únicamente para visualización, no para calcular estadísticas de transformación.</p>
+<div id="cell-grafico-ingresos-transformados" class="cell" data-execution_count="25">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>muestra_ingresos <span class="op">=</span> entrenamiento[[<span class="st">"annual_inc"</span>, <span class="st">"log_annual_inc"</span>]].dropna()</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>muestra_ingresos <span class="op">=</span> muestra_ingresos.sample(</span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>    n<span class="op">=</span><span class="bu">min</span>(<span class="dv">50000</span>, <span class="bu">len</span>(muestra_ingresos)), random_state<span class="op">=</span><span class="dv">42</span></span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a>fig, ejes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">4</span>))</span>
+<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a>sns.histplot(muestra_ingresos[<span class="st">"annual_inc"</span>], bins<span class="op">=</span><span class="dv">60</span>, ax<span class="op">=</span>ejes[<span class="dv">0</span>])</span>
+<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a>ejes[<span class="dv">0</span>].set_title(<span class="st">"Ingreso anual original"</span>)</span>
+<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a>ejes[<span class="dv">0</span>].set_xlabel(<span class="st">"Ingreso anual (USD)"</span>)</span>
+<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a>sns.histplot(muestra_ingresos[<span class="st">"log_annual_inc"</span>], bins<span class="op">=</span><span class="dv">60</span>, ax<span class="op">=</span>ejes[<span class="dv">1</span>])</span>
+<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a>ejes[<span class="dv">1</span>].set_title(<span class="st">"Ingreso anual transformado"</span>)</span>
+<span id="cb41-12"><a href="#cb41-12" aria-hidden="true" tabindex="-1"></a>ejes[<span class="dv">1</span>].set_xlabel(<span class="st">"ln(1 + ingreso anual)"</span>)</span>
+<span id="cb41-13"><a href="#cb41-13" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb41-14"><a href="#cb41-14" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div id="grafico-ingresos-transformados" class="quarto-figure quarto-figure-center anchored">
+<figure class="figure">
+<p><img src="02_limpieza_python_files/figure-html/grafico-ingresos-transformados-output-1.png" width="1136" height="368" class="figure-img"></p>
+<figcaption>Ingreso anual original y transformación logarítmica en una muestra del entrenamiento</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="b.18.5-validación-posterior-al-tratamiento" class="level3">
+<h3 class="anchored" data-anchor-id="b.18.5-validación-posterior-al-tratamiento">B.18.5 Validación posterior al tratamiento</h3>
+<p>Se comprueba que el número de observaciones no cambió, que no quedaron DTI negativos y que las transformaciones no introdujeron valores infinitos. También se comprueba la cantidad de valores faltantes que permanece en las columnas nuevas.</p>
+<div id="cell-validacion-tratamientos" class="cell" data-execution_count="26">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>validaciones <span class="op">=</span> []</span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> nombre, conjunto <span class="kw">in</span> ((<span class="st">"Entrenamiento"</span>, entrenamiento), (<span class="st">"Prueba"</span>, prueba)):</span>
+<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>    validaciones.append({</span>
+<span id="cb42-4"><a href="#cb42-4" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Conjunto"</span>: nombre,</span>
+<span id="cb42-5"><a href="#cb42-5" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Registros"</span>: <span class="bu">len</span>(conjunto),</span>
+<span id="cb42-6"><a href="#cb42-6" aria-hidden="true" tabindex="-1"></a>        <span class="st">"DTI_negativos"</span>: <span class="bu">int</span>((conjunto[<span class="st">"dti"</span>] <span class="op">&lt;</span> <span class="dv">0</span>).<span class="bu">sum</span>()),</span>
+<span id="cb42-7"><a href="#cb42-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">"DTI_nulos"</span>: <span class="bu">int</span>(conjunto[<span class="st">"dti"</span>].isna().<span class="bu">sum</span>()),</span>
+<span id="cb42-8"><a href="#cb42-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Ingreso_nulos"</span>: <span class="bu">int</span>(conjunto[<span class="st">"annual_inc"</span>].isna().<span class="bu">sum</span>()),</span>
+<span id="cb42-9"><a href="#cb42-9" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Log_ingreso_nulos"</span>: <span class="bu">int</span>(conjunto[<span class="st">"log_annual_inc"</span>].isna().<span class="bu">sum</span>()),</span>
+<span id="cb42-10"><a href="#cb42-10" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Log_ingreso_infinitos"</span>: <span class="bu">int</span>(np.isinf(conjunto[<span class="st">"log_annual_inc"</span>]).<span class="bu">sum</span>())</span>
+<span id="cb42-11"><a href="#cb42-11" aria-hidden="true" tabindex="-1"></a>    })</span>
+<span id="cb42-12"><a href="#cb42-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-13"><a href="#cb42-13" aria-hidden="true" tabindex="-1"></a>tabla_validacion <span class="op">=</span> pd.DataFrame(validaciones)</span>
+<span id="cb42-14"><a href="#cb42-14" aria-hidden="true" tabindex="-1"></a>display(tabla_validacion)</span>
+<span id="cb42-15"><a href="#cb42-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-16"><a href="#cb42-16" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> tabla_validacion[<span class="st">"DTI_negativos"</span>].eq(<span class="dv">0</span>).<span class="bu">all</span>()</span>
+<span id="cb42-17"><a href="#cb42-17" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> tabla_validacion[<span class="st">"DTI_nulos"</span>].eq(<span class="dv">0</span>).<span class="bu">all</span>()</span>
+<span id="cb42-18"><a href="#cb42-18" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> tabla_validacion[<span class="st">"Log_ingreso_infinitos"</span>].eq(<span class="dv">0</span>).<span class="bu">all</span>()</span>
+<span id="cb42-19"><a href="#cb42-19" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="bu">len</span>(entrenamiento) <span class="op">+</span> <span class="bu">len</span>(prueba) <span class="op">==</span> <span class="bu">len</span>(df_temporal)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="validacion-tratamientos" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Conjunto</th>
+<th data-quarto-table-cell-role="th">Registros</th>
+<th data-quarto-table-cell-role="th">DTI_negativos</th>
+<th data-quarto-table-cell-role="th">DTI_nulos</th>
+<th data-quarto-table-cell-role="th">Ingreso_nulos</th>
+<th data-quarto-table-cell-role="th">Log_ingreso_nulos</th>
+<th data-quarto-table-cell-role="th">Log_ingreso_infinitos</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>Entrenamiento</td>
+<td>1026281</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>Prueba</td>
+<td>277326</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="b.18.6-conclusiones-del-tratamiento" class="level3">
+<h3 class="anchored" data-anchor-id="b.18.6-conclusiones-del-tratamiento">B.18.6 Conclusiones del tratamiento</h3>
+<p>Se conservaron los valores extremos financieramente plausibles sin aplicar eliminación masiva de registros ni recortes automáticos por IQR. Los DTI negativos se trataron como información no válida para esta variable y se sustituyeron por la mediana válida del entrenamiento, conservando un indicador de su presencia. El ingreso anual se transformó logarítmicamente en una nueva columna, sin sobrescribir el dato original.</p>
+<p>Estas decisiones son preliminares para el análisis predictivo: todavía se requiere codificar las variables categóricas, revisar las características finales y preparar un pipeline que reproduzca las transformaciones durante la validación cruzada y la evaluación del modelo.</p>
+</section>
+</section>
+<section id="b.19-validación-final-de-la-calidad" class="level2">
+<h2 class="anchored" data-anchor-id="b.19-validación-final-de-la-calidad">B.19 Validación final de la calidad</h2>
+<p>Se verifica la integridad de las muestras, la variable objetivo y las características transformadas. Se distinguen los campos originales conservados para trazabilidad de las características que utilizarán los modelos.</p>
+<div id="cell-calidad-final" class="cell" data-execution_count="27">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>campos_preparados <span class="op">=</span> [</span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"incumplimiento"</span>, <span class="st">"loan_amnt"</span>, <span class="st">"int_rate"</span>, <span class="st">"installment"</span>, <span class="st">"annual_inc"</span>,</span>
+<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"log_annual_inc"</span>, <span class="st">"dti"</span>, <span class="st">"revol_util"</span>, <span class="st">"term_meses"</span>,</span>
+<span id="cb43-4"><a href="#cb43-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"antiguedad_crediticia_anios"</span>, <span class="st">"emp_length_categoria"</span>,</span>
+<span id="cb43-5"><a href="#cb43-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"dti_negativo_original"</span></span>
+<span id="cb43-6"><a href="#cb43-6" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb43-7"><a href="#cb43-7" aria-hidden="true" tabindex="-1"></a>resumen_final <span class="op">=</span> []</span>
+<span id="cb43-8"><a href="#cb43-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> nombre, datos <span class="kw">in</span> ((<span class="st">"Entrenamiento"</span>, entrenamiento), (<span class="st">"Prueba"</span>, prueba)):</span>
+<span id="cb43-9"><a href="#cb43-9" aria-hidden="true" tabindex="-1"></a>    resumen_final.append({</span>
+<span id="cb43-10"><a href="#cb43-10" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Conjunto"</span>: nombre,</span>
+<span id="cb43-11"><a href="#cb43-11" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Registros"</span>: <span class="bu">len</span>(datos),</span>
+<span id="cb43-12"><a href="#cb43-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Columnas"</span>: datos.shape[<span class="dv">1</span>],</span>
+<span id="cb43-13"><a href="#cb43-13" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Incumplimiento_%"</span>: <span class="bu">round</span>(datos[<span class="st">"incumplimiento"</span>].mean() <span class="op">*</span> <span class="dv">100</span>, <span class="dv">2</span>),</span>
+<span id="cb43-14"><a href="#cb43-14" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Nulos_en_campos_clave"</span>: <span class="bu">int</span>(datos[campos_preparados].isna().<span class="bu">sum</span>().<span class="bu">sum</span>()),</span>
+<span id="cb43-15"><a href="#cb43-15" aria-hidden="true" tabindex="-1"></a>        <span class="st">"DTI_negativos"</span>: <span class="bu">int</span>((datos[<span class="st">"dti"</span>] <span class="op">&lt;</span> <span class="dv">0</span>).<span class="bu">sum</span>())</span>
+<span id="cb43-16"><a href="#cb43-16" aria-hidden="true" tabindex="-1"></a>    })</span>
+<span id="cb43-17"><a href="#cb43-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">assert</span> datos[<span class="st">"incumplimiento"</span>].isin([<span class="dv">0</span>, <span class="dv">1</span>]).<span class="bu">all</span>()</span>
+<span id="cb43-18"><a href="#cb43-18" aria-hidden="true" tabindex="-1"></a>    <span class="cf">assert</span> datos[<span class="st">"fecha_emision"</span>].notna().<span class="bu">all</span>()</span>
+<span id="cb43-19"><a href="#cb43-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">assert</span> (datos[<span class="st">"dti"</span>] <span class="op">&gt;=</span> <span class="dv">0</span>).<span class="bu">all</span>()</span>
+<span id="cb43-20"><a href="#cb43-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">assert</span> np.isfinite(datos[<span class="st">"log_annual_inc"</span>]).<span class="bu">all</span>()</span>
+<span id="cb43-21"><a href="#cb43-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb43-22"><a href="#cb43-22" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> entrenamiento[<span class="st">"fecha_emision"</span>].<span class="bu">max</span>() <span class="op">&lt;</span> prueba[<span class="st">"fecha_emision"</span>].<span class="bu">min</span>()</span>
+<span id="cb43-23"><a href="#cb43-23" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="bu">len</span>(entrenamiento) <span class="op">+</span> <span class="bu">len</span>(prueba) <span class="op">==</span> <span class="bu">len</span>(df_temporal)</span>
+<span id="cb43-24"><a href="#cb43-24" aria-hidden="true" tabindex="-1"></a>display(pd.DataFrame(resumen_final))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="calidad-final" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Conjunto</th>
+<th data-quarto-table-cell-role="th">Registros</th>
+<th data-quarto-table-cell-role="th">Columnas</th>
+<th data-quarto-table-cell-role="th">Incumplimiento_%</th>
+<th data-quarto-table-cell-role="th">Nulos_en_campos_clave</th>
+<th data-quarto-table-cell-role="th">DTI_negativos</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>Entrenamiento</td>
+<td>1026281</td>
+<td>33</td>
+<td>19.59</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>Prueba</td>
+<td>277326</td>
+<td>33</td>
+<td>21.85</td>
+<td>0</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="b.20-exportación-de-datos-para-las-siguientes-fases" class="level2">
+<h2 class="anchored" data-anchor-id="b.20-exportación-de-datos-para-las-siguientes-fases">B.20 Exportación de datos para las siguientes fases</h2>
+<p>Se exportan dos representaciones: <strong>prepared</strong> contiene las transformaciones exploratorias de B.15–B.18 y se utiliza para el análisis descriptivo; <strong>raw_split</strong> conserva las columnas derivadas determinísticamente, pero no aplica medianas aprendidas ni transformaciones ajustadas. Esta última representación alimentará los pipelines del modelado para que cada ajuste de entrenamiento y validación calcule sus propias estadísticas.</p>
+<div id="cell-exportacion-datos" class="cell" data-execution_count="28">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a>carpeta_procesados <span class="op">=</span> Path(<span class="st">"../data/processed"</span>)</span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>carpeta_procesados.mkdir(parents<span class="op">=</span><span class="va">True</span>, exist_ok<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Conservar índices originales: permiten verificar correspondencia entre versiones.</span></span>
+<span id="cb44-5"><a href="#cb44-5" aria-hidden="true" tabindex="-1"></a>train_raw <span class="op">=</span> df_temporal.loc[entrenamiento.index].copy()</span>
+<span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a>test_raw <span class="op">=</span> df_temporal.loc[prueba.index].copy()</span>
+<span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-8"><a href="#cb44-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Regla determinística, sin utilizar estadísticas de prueba.</span></span>
+<span id="cb44-9"><a href="#cb44-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> datos <span class="kw">in</span> (train_raw, test_raw):</span>
+<span id="cb44-10"><a href="#cb44-10" aria-hidden="true" tabindex="-1"></a>    datos[<span class="st">"dti_negativo_original"</span>] <span class="op">=</span> (datos[<span class="st">"dti"</span>] <span class="op">&lt;</span> <span class="dv">0</span>).astype(<span class="st">"int8"</span>)</span>
+<span id="cb44-11"><a href="#cb44-11" aria-hidden="true" tabindex="-1"></a>    datos.loc[datos[<span class="st">"dti"</span>] <span class="op">&lt;</span> <span class="dv">0</span>, <span class="st">"dti"</span>] <span class="op">=</span> np.nan</span>
+<span id="cb44-12"><a href="#cb44-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-13"><a href="#cb44-13" aria-hidden="true" tabindex="-1"></a>archivos <span class="op">=</span> {</span>
+<span id="cb44-14"><a href="#cb44-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"train_prepared.parquet"</span>: entrenamiento,</span>
+<span id="cb44-15"><a href="#cb44-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"test_prepared.parquet"</span>: prueba,</span>
+<span id="cb44-16"><a href="#cb44-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">"train_raw_split.parquet"</span>: train_raw,</span>
+<span id="cb44-17"><a href="#cb44-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">"test_raw_split.parquet"</span>: test_raw,</span>
+<span id="cb44-18"><a href="#cb44-18" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb44-19"><a href="#cb44-19" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> nombre, datos <span class="kw">in</span> archivos.items():</span>
+<span id="cb44-20"><a href="#cb44-20" aria-hidden="true" tabindex="-1"></a>    destino <span class="op">=</span> carpeta_procesados <span class="op">/</span> nombre</span>
+<span id="cb44-21"><a href="#cb44-21" aria-hidden="true" tabindex="-1"></a>    datos.to_parquet(destino, index<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb44-22"><a href="#cb44-22" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Guardado: </span><span class="sc">{</span>destino<span class="sc">}</span><span class="ss"> | </span><span class="sc">{</span><span class="bu">len</span>(datos)<span class="sc">:,}</span><span class="ss"> registros"</span>)</span>
+<span id="cb44-23"><a href="#cb44-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-24"><a href="#cb44-24" aria-hidden="true" tabindex="-1"></a><span class="co"># Contrato de columnas para modelado: se excluye loan_status (origen del objetivo)</span></span>
+<span id="cb44-25"><a href="#cb44-25" aria-hidden="true" tabindex="-1"></a><span class="co"># y se evita usar fechas y cadenas originales directamente como predictores.</span></span>
+<span id="cb44-26"><a href="#cb44-26" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> json</span>
+<span id="cb44-27"><a href="#cb44-27" aria-hidden="true" tabindex="-1"></a>contrato <span class="op">=</span> {</span>
+<span id="cb44-28"><a href="#cb44-28" aria-hidden="true" tabindex="-1"></a>    <span class="st">"objetivo"</span>: <span class="st">"incumplimiento"</span>,</span>
+<span id="cb44-29"><a href="#cb44-29" aria-hidden="true" tabindex="-1"></a>    <span class="st">"fecha_corte"</span>: <span class="bu">str</span>(fecha_corte.date()),</span>
+<span id="cb44-30"><a href="#cb44-30" aria-hidden="true" tabindex="-1"></a>    <span class="st">"registros_entrenamiento"</span>: <span class="bu">len</span>(entrenamiento),</span>
+<span id="cb44-31"><a href="#cb44-31" aria-hidden="true" tabindex="-1"></a>    <span class="st">"registros_prueba"</span>: <span class="bu">len</span>(prueba),</span>
+<span id="cb44-32"><a href="#cb44-32" aria-hidden="true" tabindex="-1"></a>    <span class="st">"nota"</span>: <span class="st">"Solo préstamos Fully Paid/Charged Off; posible sesgo por maduración de cohortes"</span>,</span>
+<span id="cb44-33"><a href="#cb44-33" aria-hidden="true" tabindex="-1"></a>    <span class="st">"archivos"</span>: <span class="bu">list</span>(archivos)</span>
+<span id="cb44-34"><a href="#cb44-34" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb44-35"><a href="#cb44-35" aria-hidden="true" tabindex="-1"></a>(carpeta_procesados <span class="op">/</span> <span class="st">"metadata.json"</span>).write_text(</span>
+<span id="cb44-36"><a href="#cb44-36" aria-hidden="true" tabindex="-1"></a>    json.dumps(contrato, ensure_ascii<span class="op">=</span><span class="va">False</span>, indent<span class="op">=</span><span class="dv">2</span>), encoding<span class="op">=</span><span class="st">"utf-8"</span></span>
+<span id="cb44-37"><a href="#cb44-37" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Guardado: ..\data\processed\train_prepared.parquet | 1,026,281 registros
+Guardado: ..\data\processed\test_prepared.parquet | 277,326 registros
+Guardado: ..\data\processed\train_raw_split.parquet | 1,026,281 registros
+Guardado: ..\data\processed\test_raw_split.parquet | 277,326 registros</code></pre>
+</div>
+<div id="exportacion-datos" class="cell-output cell-output-display" data-execution_count="56">
+<pre><code>366</code></pre>
+</div>
+</div>
+<p><strong>Dependencia:</strong> para exportar Parquet se necesita <code>pyarrow</code> (instalar con <code>pip install pyarrow</code> si no está disponible). No se altera <code>data/raw/loan.csv</code>.</p>
+</section>
+<section id="b.21-conclusiones-y-limitaciones-de-la-limpieza" class="level2">
+<h2 class="anchored" data-anchor-id="b.21-conclusiones-y-limitaciones-de-la-limpieza">B.21 Conclusiones y limitaciones de la limpieza</h2>
+<p>Se realizó una auditoría del dataset original, se seleccionaron préstamos con resultado definitivo, se construyó la variable objetivo y se dividió cronológicamente la muestra. Las transformaciones y los criterios de imputación se documentaron, y se generaron archivos reutilizables para las fases posteriores.</p>
+<p><strong>Limitación importante:</strong> al seleccionar solo préstamos <code>Fully Paid</code> y <code>Charged Off</code>, los préstamos recientes que todavía están activos quedan excluidos. Esto puede generar <strong>sesgo de selección por maduración</strong> y afectar la comparación temporal de tasas de incumplimiento. Las conclusiones predictivas deberán limitarse a la población observada y evaluar este sesgo explícitamente.</p>
+<p>En el modelado se volverán a aprender las imputaciones y la codificación categórica dentro de pipelines. La prueba temporal se mantendrá reservada para una evaluación final, sin utilizarla para seleccionar algoritmos ni ajustar hiperparámetros.</p>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copiado");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copiado");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

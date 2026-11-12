@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es" xml:lang="es"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Cristian Guzman">
+
+<title>Análisis de Riesgo Crediticio - LendingClub</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="03_analisis_exploratorio_files/libs/clipboard/clipboard.min.js"></script>
+<script src="03_analisis_exploratorio_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="03_analisis_exploratorio_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="03_analisis_exploratorio_files/libs/quarto-html/popper.min.js"></script>
+<script src="03_analisis_exploratorio_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="03_analisis_exploratorio_files/libs/quarto-html/anchor.min.js"></script>
+<link href="03_analisis_exploratorio_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="03_analisis_exploratorio_files/libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="03_analisis_exploratorio_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="03_analisis_exploratorio_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="03_analisis_exploratorio_files/libs/bootstrap/bootstrap-215b371544c282197b31c8aa00ce3677.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Tabla de contenidos</h2>
+   
+  <ul>
+  <li><a href="#parte-c-análisis-exploratorio-del-riesgo-crediticio" id="toc-parte-c-análisis-exploratorio-del-riesgo-crediticio" class="nav-link active" data-scroll-target="#parte-c-análisis-exploratorio-del-riesgo-crediticio">Parte C: Análisis exploratorio del riesgo crediticio</a>
+  <ul class="collapse">
+  <li><a href="#c.1-objetivos-preguntas-y-criterios-metodológicos" id="toc-c.1-objetivos-preguntas-y-criterios-metodológicos" class="nav-link" data-scroll-target="#c.1-objetivos-preguntas-y-criterios-metodológicos">C.1 Objetivos, preguntas y criterios metodológicos</a></li>
+  <li><a href="#c.2-configuración-reproducible-de-python-y-r" id="toc-c.2-configuración-reproducible-de-python-y-r" class="nav-link" data-scroll-target="#c.2-configuración-reproducible-de-python-y-r">C.2 Configuración reproducible de Python y R</a></li>
+  <li><a href="#c.3-diccionario-de-variables-seleccionadas" id="toc-c.3-diccionario-de-variables-seleccionadas" class="nav-link" data-scroll-target="#c.3-diccionario-de-variables-seleccionadas">C.3 Diccionario de variables seleccionadas</a></li>
+  <li><a href="#c.4-análisis-univariado" id="toc-c.4-análisis-univariado" class="nav-link" data-scroll-target="#c.4-análisis-univariado">C.4 Análisis univariado</a>
+  <ul class="collapse">
+  <li><a href="#c.4.1-distribución-de-la-variable-objetivo" id="toc-c.4.1-distribución-de-la-variable-objetivo" class="nav-link" data-scroll-target="#c.4.1-distribución-de-la-variable-objetivo">C.4.1 Distribución de la variable objetivo</a></li>
+  <li><a href="#c.4.2-distribución-de-características-numéricas" id="toc-c.4.2-distribución-de-características-numéricas" class="nav-link" data-scroll-target="#c.4.2-distribución-de-características-numéricas">C.4.2 Distribución de características numéricas</a></li>
+  <li><a href="#c.4.3-frecuencias-de-categorías" id="toc-c.4.3-frecuencias-de-categorías" class="nav-link" data-scroll-target="#c.4.3-frecuencias-de-categorías">C.4.3 Frecuencias de categorías</a></li>
+  </ul></li>
+  <li><a href="#c.5-análisis-bivariado-diferencias-entre-grupos" id="toc-c.5-análisis-bivariado-diferencias-entre-grupos" class="nav-link" data-scroll-target="#c.5-análisis-bivariado-diferencias-entre-grupos">C.5 Análisis bivariado: diferencias entre grupos</a>
+  <ul class="collapse">
+  <li><a href="#c.5.1-incumplimiento-según-características-categóricas" id="toc-c.5.1-incumplimiento-según-características-categóricas" class="nav-link" data-scroll-target="#c.5.1-incumplimiento-según-características-categóricas">C.5.1 Incumplimiento según características categóricas</a></li>
+  <li><a href="#c.5.2-comparación-de-medianas-según-resultado" id="toc-c.5.2-comparación-de-medianas-según-resultado" class="nav-link" data-scroll-target="#c.5.2-comparación-de-medianas-según-resultado">C.5.2 Comparación de medianas según resultado</a></li>
+  </ul></li>
+  <li><a href="#c.6-análisis-temporal-por-cohorte-de-originación" id="toc-c.6-análisis-temporal-por-cohorte-de-originación" class="nav-link" data-scroll-target="#c.6-análisis-temporal-por-cohorte-de-originación">C.6 Análisis temporal por cohorte de originación</a></li>
+  <li><a href="#c.7-correlaciones-entre-variables-numéricas" id="toc-c.7-correlaciones-entre-variables-numéricas" class="nav-link" data-scroll-target="#c.7-correlaciones-entre-variables-numéricas">C.7 Correlaciones entre variables numéricas</a></li>
+  <li><a href="#c.8-análisis-estadístico-en-r" id="toc-c.8-análisis-estadístico-en-r" class="nav-link" data-scroll-target="#c.8-análisis-estadístico-en-r">C.8 Análisis estadístico en R</a>
+  <ul class="collapse">
+  <li><a href="#c.8.1-frecuencias-y-distribución-de-incumplimiento-con-dplyr-y-ggplot2" id="toc-c.8.1-frecuencias-y-distribución-de-incumplimiento-con-dplyr-y-ggplot2" class="nav-link" data-scroll-target="#c.8.1-frecuencias-y-distribución-de-incumplimiento-con-dplyr-y-ggplot2">C.8.1 Frecuencias y distribución de incumplimiento con <code>dplyr</code> y <code>ggplot2</code></a></li>
+  <li><a href="#c.8.2-comparación-de-calificación-y-plazo-con-r" id="toc-c.8.2-comparación-de-calificación-y-plazo-con-r" class="nav-link" data-scroll-target="#c.8.2-comparación-de-calificación-y-plazo-con-r">C.8.2 Comparación de calificación y plazo con R</a></li>
+  <li><a href="#c.8.3-interpretación-estadística-de-correlaciones-con-r" id="toc-c.8.3-interpretación-estadística-de-correlaciones-con-r" class="nav-link" data-scroll-target="#c.8.3-interpretación-estadística-de-correlaciones-con-r">C.8.3 Interpretación estadística de correlaciones con R</a></li>
+  </ul></li>
+  <li><a href="#c.9-análisis-exploratorio-multivariado" id="toc-c.9-análisis-exploratorio-multivariado" class="nav-link" data-scroll-target="#c.9-análisis-exploratorio-multivariado">C.9 Análisis exploratorio multivariado</a>
+  <ul class="collapse">
+  <li><a href="#c.9.1-cruce-entre-calificación-y-plazo-del-préstamo" id="toc-c.9.1-cruce-entre-calificación-y-plazo-del-préstamo" class="nav-link" data-scroll-target="#c.9.1-cruce-entre-calificación-y-plazo-del-préstamo">C.9.1 Cruce entre calificación y plazo del préstamo</a></li>
+  <li><a href="#c.9.2-interacción-entre-plazo-calificación-e-incumplimiento-en-r" id="toc-c.9.2-interacción-entre-plazo-calificación-e-incumplimiento-en-r" class="nav-link" data-scroll-target="#c.9.2-interacción-entre-plazo-calificación-e-incumplimiento-en-r">C.9.2 Interacción entre plazo, calificación e incumplimiento en R</a></li>
+  <li><a href="#c.9.3-ingreso-endeudamiento-e-incumplimiento" id="toc-c.9.3-ingreso-endeudamiento-e-incumplimiento" class="nav-link" data-scroll-target="#c.9.3-ingreso-endeudamiento-e-incumplimiento">C.9.3 Ingreso, endeudamiento e incumplimiento</a></li>
+  <li><a href="#c.9.4-visualización-multivariada-con-r" id="toc-c.9.4-visualización-multivariada-con-r" class="nav-link" data-scroll-target="#c.9.4-visualización-multivariada-con-r">C.9.4 Visualización multivariada con R</a></li>
+  </ul></li>
+  <li><a href="#c.10-síntesis-automática-de-hallazgos" id="toc-c.10-síntesis-automática-de-hallazgos" class="nav-link" data-scroll-target="#c.10-síntesis-automática-de-hallazgos">C.10 Síntesis automática de hallazgos</a></li>
+  <li><a href="#c.11-conclusiones-y-límites-del-eda" id="toc-c.11-conclusiones-y-límites-del-eda" class="nav-link" data-scroll-target="#c.11-conclusiones-y-límites-del-eda">C.11 Conclusiones y límites del EDA</a></li>
+  <li><a href="#c.12-archivos-generados-y-utilidad-para-power-bi" id="toc-c.12-archivos-generados-y-utilidad-para-power-bi" class="nav-link" data-scroll-target="#c.12-archivos-generados-y-utilidad-para-power-bi">C.12 Archivos generados y utilidad para Power BI</a></li>
+  <li><a href="#c.13-reproducción-y-dependencias" id="toc-c.13-reproducción-y-dependencias" class="nav-link" data-scroll-target="#c.13-reproducción-y-dependencias">C.13 Reproducción y dependencias</a></li>
+  </ul></li>
+  </ul>
+<div class="quarto-alternate-formats"><h2>Otros formatos</h2><ul><li><a href="03_analisis_exploratorio.pdf"><i class="bi bi-file-pdf"></i>PDF</a></li></ul></div></nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Análisis de Riesgo Crediticio - LendingClub</h1>
+<p class="subtitle lead">Parte C: Análisis exploratorio univariado, bivariado y multivariado</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Autor/a</div>
+    <div class="quarto-title-meta-contents">
+             <p>Cristian Guzman </p>
+          </div>
+  </div>
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="parte-c-análisis-exploratorio-del-riesgo-crediticio" class="level1">
+<h1>Parte C: Análisis exploratorio del riesgo crediticio</h1>
+<section id="c.1-objetivos-preguntas-y-criterios-metodológicos" class="level2">
+<h2 class="anchored" data-anchor-id="c.1-objetivos-preguntas-y-criterios-metodológicos">C.1 Objetivos, preguntas y criterios metodológicos</h2>
+<p>Este análisis utiliza exclusivamente los préstamos del <strong>conjunto de entrenamiento</strong>. El conjunto de prueba se mantiene reservado para la evaluación final del modelo. Las relaciones observadas son <strong>asociaciones</strong>, no efectos causales.</p>
+<p><strong>Preguntas de investigación:</strong></p>
+<ol type="1">
+<li>¿Qué proporción de préstamos terminó en incumplimiento?</li>
+<li>¿Cómo varían las características de los préstamos y los prestatarios?</li>
+<li>¿Qué diferencias se observan por calificación, plazo y situación financiera?</li>
+<li>¿Cómo se relacionan varias características simultáneamente con el incumplimiento?</li>
+<li>¿Qué patrones temporales aparecen y cuáles podrían deberse al sesgo de maduración?</li>
+</ol>
+<p><strong>Herramientas:</strong> Python (<code>pandas</code>, <code>numpy</code>, <code>matplotlib</code>, <code>seaborn</code>) para lectura de Parquet, agregaciones y exportación; R (<code>dplyr</code>, <code>ggplot2</code>, <code>readr</code>, <code>tidyr</code>) para análisis estadístico, contrastes descriptivos y visualización. Quarto utiliza <strong>Knitr + Reticulate</strong> para ejecutar los dos lenguajes en el mismo documento.</p>
+</section>
+<section id="c.2-configuración-reproducible-de-python-y-r" class="level2">
+<h2 class="anchored" data-anchor-id="c.2-configuración-reproducible-de-python-y-r">C.2 Configuración reproducible de Python y R</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> display</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>sns.set_theme(style<span class="op">=</span><span class="st">"whitegrid"</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>RUTA <span class="op">=</span> Path(<span class="st">"../data/processed/train_prepared.parquet"</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>SALIDA <span class="op">=</span> Path(<span class="st">"../outputs/eda"</span>)</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>SALIDA.mkdir(parents<span class="op">=</span><span class="va">True</span>, exist_ok<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">not</span> RUTA.exists():</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">raise</span> <span class="pp">FileNotFoundError</span>(<span class="st">"Primero ejecuta 02_limpieza_python.qmd y genera train_prepared.parquet"</span>)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_parquet(RUTA)</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>df[<span class="st">"fecha_emision"</span>] <span class="op">=</span> pd.to_datetime(df[<span class="st">"fecha_emision"</span>], errors<span class="op">=</span><span class="st">"coerce"</span>)</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="st">"incumplimiento"</span> <span class="kw">not</span> <span class="kw">in</span> df:</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">raise</span> <span class="pp">KeyError</span>(<span class="st">"No existe la variable objetivo 'incumplimiento'"</span>)</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Registros de entrenamiento: </span><span class="sc">{</span><span class="bu">len</span>(df)<span class="sc">:,}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Registros de entrenamiento: 1,026,281</code></pre>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Columnas: </span><span class="sc">{</span>df<span class="sc">.</span>shape[<span class="dv">1</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Columnas: 33</code></pre>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Período: </span><span class="sc">{</span>df[<span class="st">'fecha_emision'</span>]<span class="sc">.</span><span class="bu">min</span>()<span class="sc">:</span><span class="op">%</span>Y<span class="op">-%</span>m<span class="sc">}</span><span class="ss"> a </span><span class="sc">{</span>df[<span class="st">'fecha_emision'</span>]<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:</span><span class="op">%</span>Y<span class="op">-%</span>m<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Período: 2007-06 a 2016-08</code></pre>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Incumplimiento: </span><span class="sc">{</span><span class="dv">100</span><span class="op">*</span>df[<span class="st">'incumplimiento'</span>]<span class="sc">.</span>mean()<span class="sc">:.2f}</span><span class="ss">%"</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Incumplimiento: 19.59%</code></pre>
+</div>
+</div>
+<p>El archivo de entrenamiento contiene préstamos emitidos antes del corte temporal de prueba. El uso exclusivo de esta muestra evita examinar anticipadamente los resultados del conjunto reservado para la evaluación final.</p>
+</section>
+<section id="c.3-diccionario-de-variables-seleccionadas" class="level2">
+<h2 class="anchored" data-anchor-id="c.3-diccionario-de-variables-seleccionadas">C.3 Diccionario de variables seleccionadas</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Variable</th>
+<th>Significado</th>
+<th>Tipo</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>incumplimiento</code></td>
+<td>1: préstamo castigado; 0: pagado completamente</td>
+<td>Binaria</td>
+</tr>
+<tr class="even">
+<td><code>loan_amnt</code></td>
+<td>Monto solicitado del préstamo</td>
+<td>Numérica</td>
+</tr>
+<tr class="odd">
+<td><code>term_meses</code></td>
+<td>Duración contractual en meses</td>
+<td>Numérica/discreta</td>
+</tr>
+<tr class="even">
+<td><code>int_rate</code></td>
+<td>Tasa de interés anual, expresada en porcentaje</td>
+<td>Numérica</td>
+</tr>
+<tr class="odd">
+<td><code>installment</code></td>
+<td>Cuota periódica del préstamo</td>
+<td>Numérica</td>
+</tr>
+<tr class="even">
+<td><code>annual_inc</code></td>
+<td>Ingreso anual declarado</td>
+<td>Numérica</td>
+</tr>
+<tr class="odd">
+<td><code>dti</code></td>
+<td>Relación entre deuda e ingreso</td>
+<td>Numérica</td>
+</tr>
+<tr class="even">
+<td><code>grade</code></td>
+<td>Calificación crediticia asignada por LendingClub</td>
+<td>Ordinal</td>
+</tr>
+<tr class="odd">
+<td><code>home_ownership</code></td>
+<td>Situación de vivienda</td>
+<td>Categórica</td>
+</tr>
+<tr class="even">
+<td><code>verification_status</code></td>
+<td>Estado de verificación de ingresos</td>
+<td>Categórica</td>
+</tr>
+<tr class="odd">
+<td><code>purpose</code></td>
+<td>Propósito declarado del préstamo</td>
+<td>Categórica</td>
+</tr>
+<tr class="even">
+<td><code>fecha_emision</code></td>
+<td>Fecha de originación del préstamo</td>
+<td>Temporal</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Nota:</strong> la tasa de interés y la calificación ya incorporan decisiones previas del prestamista. Las comparaciones no permiten afirmar que estas características causen el incumplimiento.</p>
+</section>
+<section id="c.4-análisis-univariado" class="level2">
+<h2 class="anchored" data-anchor-id="c.4-análisis-univariado">C.4 Análisis univariado</h2>
+<section id="c.4.1-distribución-de-la-variable-objetivo" class="level3">
+<h3 class="anchored" data-anchor-id="c.4.1-distribución-de-la-variable-objetivo">C.4.1 Distribución de la variable objetivo</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>conteos <span class="op">=</span> df[<span class="st">"incumplimiento"</span>].value_counts().reindex([<span class="dv">0</span>, <span class="dv">1</span>], fill_value<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>tabla_objetivo <span class="op">=</span> pd.DataFrame({</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"estado"</span>: [<span class="st">"Pagado completamente"</span>, <span class="st">"Castigado"</span>],</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"prestamos"</span>: conteos.to_numpy(),</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"porcentaje"</span>: <span class="dv">100</span> <span class="op">*</span> conteos.to_numpy() <span class="op">/</span> <span class="bu">len</span>(df)</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>tabla_objetivo.to_csv(SALIDA <span class="op">/</span> <span class="st">"distribucion_objetivo.csv"</span>, index<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>display(tabla_objetivo.<span class="bu">round</span>(<span class="dv">2</span>))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>                 estado  prestamos  porcentaje
+0  Pagado completamente     825214       80.41
+1             Castigado     201067       19.59</code></pre>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">7</span>, <span class="dv">4</span>))</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>ax.bar(tabla_objetivo[<span class="st">"estado"</span>], tabla_objetivo[<span class="st">"porcentaje"</span>])</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(<span class="st">"Porcentaje de préstamos"</span>)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="st">"Distribución del resultado final"</span>)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i, v <span class="kw">in</span> <span class="bu">enumerate</span>(tabla_objetivo[<span class="st">"porcentaje"</span>]):</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    ax.text(i, v <span class="op">+</span> <span class="dv">1</span>, <span class="ss">f"</span><span class="sc">{</span>v<span class="sc">:.2f}</span><span class="ss">%"</span>, ha<span class="op">=</span><span class="st">"center"</span>)</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>ax.set_ylim(<span class="dv">0</span>, <span class="dv">95</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>(0.0, 95.0)</code></pre>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="03_analisis_exploratorio_files/figure-html/distribucion-objetivo-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="c.4.2-distribución-de-características-numéricas" class="level3">
+<h3 class="anchored" data-anchor-id="c.4.2-distribución-de-características-numéricas">C.4.2 Distribución de características numéricas</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>numericas_descriptivas <span class="op">=</span> [<span class="st">"loan_amnt"</span>, <span class="st">"int_rate"</span>, <span class="st">"installment"</span>, <span class="st">"annual_inc"</span>, <span class="st">"dti"</span>, <span class="st">"revol_util"</span>, <span class="st">"term_meses"</span>]</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>existentes <span class="op">=</span> [c <span class="cf">for</span> c <span class="kw">in</span> numericas_descriptivas <span class="cf">if</span> c <span class="kw">in</span> df.columns]</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>resumen_univariado <span class="op">=</span> df[existentes].describe(percentiles<span class="op">=</span>[<span class="fl">.05</span>, <span class="fl">.25</span>, <span class="fl">.5</span>, <span class="fl">.75</span>, <span class="fl">.95</span>]).T</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>resumen_univariado[<span class="st">"faltantes_pct"</span>] <span class="op">=</span> df[existentes].isna().mean() <span class="op">*</span> <span class="dv">100</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>resumen_univariado.to_csv(SALIDA <span class="op">/</span> <span class="st">"resumen_univariado.csv"</span>, index_label<span class="op">=</span><span class="st">"variable"</span>)</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>display(resumen_univariado.<span class="bu">round</span>(<span class="dv">2</span>))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>                 count      mean  ...         max  faltantes_pct
+loan_amnt    1026281.0  14438.50  ...    40000.00            0.0
+int_rate     1026281.0     13.08  ...       30.99            0.0
+installment  1026281.0    437.45  ...     1569.11            0.0
+annual_inc   1026281.0  75316.36  ...  9550000.00            0.0
+dti          1026281.0     18.15  ...      999.00            0.0
+revol_util   1026281.0     53.69  ...      892.30            0.0
+term_meses   1026281.0     41.80  ...       60.00            0.0
+
+[7 rows x 11 columns]</code></pre>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">2</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">7</span>))</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, var <span class="kw">in</span> <span class="bu">zip</span>(axes.flat, [<span class="st">"loan_amnt"</span>, <span class="st">"int_rate"</span>, <span class="st">"annual_inc"</span>, <span class="st">"dti"</span>]):</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    datos <span class="op">=</span> pd.to_numeric(df[var], errors<span class="op">=</span><span class="st">"coerce"</span>).dropna()</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    limite <span class="op">=</span> datos.quantile(<span class="fl">.99</span>)</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    ax.hist(datos[datos <span class="op">&lt;=</span> limite], bins<span class="op">=</span><span class="dv">35</span>)</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    ax.set_title(<span class="ss">f"Distribución de </span><span class="sc">{</span>var<span class="sc">}</span><span class="ss"> (hasta p99)"</span>)</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    ax.set_ylabel(<span class="st">"Frecuencia"</span>)</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="03_analisis_exploratorio_files/figure-html/distribuciones-numericas-3.png" class="img-fluid figure-img" width="1152"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Los histogramas muestran el comportamiento de cada variable de manera individual. Para facilitar la lectura se muestran valores hasta el percentil 99; <strong>no se eliminan registros del conjunto utilizado en el análisis</strong>.</p>
+</section>
+<section id="c.4.3-frecuencias-de-categorías" class="level3">
+<h3 class="anchored" data-anchor-id="c.4.3-frecuencias-de-categorías">C.4.3 Frecuencias de categorías</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> variable <span class="kw">in</span> [<span class="st">"grade"</span>, <span class="st">"term_meses"</span>, <span class="st">"home_ownership"</span>, <span class="st">"verification_status"</span>, <span class="st">"purpose"</span>]:</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    tabla <span class="op">=</span> df[variable].value_counts(dropna<span class="op">=</span><span class="va">False</span>).rename_axis(variable).reset_index(name<span class="op">=</span><span class="st">"prestamos"</span>)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    tabla[<span class="st">"porcentaje"</span>] <span class="op">=</span> tabla[<span class="st">"prestamos"</span>] <span class="op">/</span> <span class="bu">len</span>(df) <span class="op">*</span> <span class="dv">100</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>    tabla.to_csv(SALIDA <span class="op">/</span> <span class="ss">f"frecuencias_</span><span class="sc">{</span>variable<span class="sc">}</span><span class="ss">.csv"</span>, index<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="sc">{</span>variable<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>    display(tabla.head(<span class="dv">12</span>).<span class="bu">round</span>(<span class="dv">2</span>))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+grade
+  grade  prestamos  porcentaje
+0     B     302426       29.47
+1     C     281830       27.46
+2     A     182884       17.82
+3     D     152078       14.82
+4     E      74805        7.29
+5     F      25924        2.53
+6     G       6334        0.62
+
+term_meses
+   term_meses  prestamos  porcentaje
+0          36     778150       75.82
+1          60     248131       24.18
+
+home_ownership
+  home_ownership  prestamos  porcentaje
+0       MORTGAGE     506369       49.34
+1           RENT     413715       40.31
+2            OWN     106003       10.33
+3          OTHER        144        0.01
+4           NONE         45        0.00
+5            ANY          5        0.00
+
+verification_status
+  verification_status  prestamos  porcentaje
+0     Source Verified     392122       38.21
+1            Verified     332244       32.37
+2        Not Verified     301915       29.42
+
+purpose
+               purpose  prestamos  porcentaje
+0   debt_consolidation     602361       58.69
+1          credit_card     232953       22.70
+2     home_improvement      62560        6.10
+3                other      53367        5.20
+4       major_purchase      21033        2.05
+5       small_business      12046        1.17
+6                  car      10676        1.04
+7              medical      10555        1.03
+8               moving       6766        0.66
+9             vacation       6116        0.60
+10               house       4537        0.44
+11             wedding       2292        0.22</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="c.5-análisis-bivariado-diferencias-entre-grupos" class="level2">
+<h2 class="anchored" data-anchor-id="c.5-análisis-bivariado-diferencias-entre-grupos">C.5 Análisis bivariado: diferencias entre grupos</h2>
+<section id="c.5.1-incumplimiento-según-características-categóricas" class="level3">
+<h3 class="anchored" data-anchor-id="c.5.1-incumplimiento-según-características-categóricas">C.5.1 Incumplimiento según características categóricas</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>categoricas <span class="op">=</span> [<span class="st">"grade"</span>, <span class="st">"term_meses"</span>, <span class="st">"home_ownership"</span>, <span class="st">"verification_status"</span>, <span class="st">"purpose"</span>, <span class="st">"application_type"</span>]</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>resultados <span class="op">=</span> []</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> variable <span class="kw">in</span> categoricas:</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>    tabla <span class="op">=</span> (df.groupby(variable, dropna<span class="op">=</span><span class="va">False</span>)[<span class="st">"incumplimiento"</span>]</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>             .agg(prestamos<span class="op">=</span><span class="st">"size"</span>, incumplidos<span class="op">=</span><span class="st">"sum"</span>, tasa_incumplimiento<span class="op">=</span><span class="st">"mean"</span>)</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>             .reset_index())</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>    tabla[<span class="st">"tasa_incumplimiento"</span>] <span class="op">*=</span> <span class="dv">100</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>    tabla.insert(<span class="dv">0</span>, <span class="st">"variable"</span>, variable)</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>    tabla <span class="op">=</span> tabla.rename(columns<span class="op">=</span>{variable: <span class="st">"categoria"</span>})</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>    tabla[<span class="st">"categoria"</span>] <span class="op">=</span> tabla[<span class="st">"categoria"</span>].astype(<span class="bu">str</span>)</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>    resultados.append(tabla)</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="sc">{</span>variable<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>    display(tabla.sort_values(<span class="st">"prestamos"</span>, ascending<span class="op">=</span><span class="va">False</span>).head(<span class="dv">15</span>).<span class="bu">round</span>(<span class="dv">2</span>))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+grade
+  variable categoria  prestamos  incumplidos  tasa_incumplimiento
+1    grade         B     302426        39525                13.07
+2    grade         C     281830        61537                21.83
+0    grade         A     182884        10987                 6.01
+3    grade         D     152078        45406                29.86
+4    grade         E      74805        28802                38.50
+5    grade         F      25924        11660                44.98
+6    grade         G       6334         3150                49.73
+
+term_meses
+     variable categoria  prestamos  incumplidos  tasa_incumplimiento
+0  term_meses        36     778150       118848                15.27
+1  term_meses        60     248131        82219                33.14
+
+home_ownership
+         variable categoria  prestamos  incumplidos  tasa_incumplimiento
+1  home_ownership  MORTGAGE     506369        86699                17.12
+5  home_ownership      RENT     413715        92921                22.46
+4  home_ownership       OWN     106003        21411                20.20
+3  home_ownership     OTHER        144           27                18.75
+2  home_ownership      NONE         45            7                15.56
+0  home_ownership       ANY          5            2                40.00
+
+verification_status
+              variable        categoria  ...  incumplidos  tasa_incumplimiento
+1  verification_status  Source Verified  ...        81742                20.85
+2  verification_status         Verified  ...        76101                22.91
+0  verification_status     Not Verified  ...        43224                14.32
+
+[3 rows x 5 columns]
+
+purpose
+   variable           categoria  prestamos  incumplidos  tasa_incumplimiento
+2   purpose  debt_consolidation     602361       125498                20.83
+1   purpose         credit_card     232953        38585                16.56
+4   purpose    home_improvement      62560        10905                17.43
+9   purpose               other      53367        11024                20.66
+6   purpose      major_purchase      21033         3675                17.47
+11  purpose      small_business      12046         3409                28.30
+0   purpose                 car      10676         1523                14.27
+7   purpose             medical      10555         2237                21.19
+8   purpose              moving       6766         1540                22.76
+12  purpose            vacation       6116         1157                18.92
+5   purpose               house       4537         1018                22.44
+13  purpose             wedding       2292          278                12.13
+10  purpose    renewable_energy        693          162                23.38
+3   purpose         educational        326           56                17.18
+
+application_type
+           variable   categoria  prestamos  incumplidos  tasa_incumplimiento
+0  application_type  Individual    1023270       200261                19.57
+1  application_type   Joint App       3011          806                26.77</code></pre>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>tasas_categoricas <span class="op">=</span> pd.concat(resultados, ignore_index<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>tasas_categoricas.to_csv(SALIDA <span class="op">/</span> <span class="st">"tasas_por_categoria.csv"</span>, index<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>grado <span class="op">=</span> tasas_categoricas[tasas_categoricas[<span class="st">"variable"</span>] <span class="op">==</span> <span class="st">"grade"</span>].copy()</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>grado <span class="op">=</span> grado[grado[<span class="st">"categoria"</span>].isin(<span class="bu">list</span>(<span class="st">"ABCDEFG"</span>))].sort_values(<span class="st">"categoria"</span>)</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">4</span>))</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>ax.bar(grado[<span class="st">"categoria"</span>], grado[<span class="st">"tasa_incumplimiento"</span>])</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Calificación crediticia"</span>, ylabel<span class="op">=</span><span class="st">"Incumplimiento (%)"</span>,</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>       title<span class="op">=</span><span class="st">"Porcentaje de incumplimiento según calificación"</span>)</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="03_analisis_exploratorio_files/figure-html/tasas-categoricas-5.png" class="img-fluid figure-img" width="768"></p>
+</figure>
+</div>
+</div>
+</div>
+<p><strong>Interpretación:</strong> la comparación por calificación permite observar si las categorías de mayor riesgo asignadas por LendingClub también presentan mayor frecuencia de incumplimiento. No equivale a demostrar causalidad.</p>
+</section>
+<section id="c.5.2-comparación-de-medianas-según-resultado" class="level3">
+<h3 class="anchored" data-anchor-id="c.5.2-comparación-de-medianas-según-resultado">C.5.2 Comparación de medianas según resultado</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>numericas <span class="op">=</span> [<span class="st">"loan_amnt"</span>, <span class="st">"int_rate"</span>, <span class="st">"installment"</span>, <span class="st">"annual_inc"</span>, <span class="st">"log_annual_inc"</span>, <span class="st">"dti"</span>, <span class="st">"revol_util"</span>, <span class="st">"antiguedad_crediticia_anios"</span>]</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>numericas <span class="op">=</span> [c <span class="cf">for</span> c <span class="kw">in</span> numericas <span class="cf">if</span> c <span class="kw">in</span> df.columns]</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>medianas <span class="op">=</span> df.groupby(<span class="st">"incumplimiento"</span>)[numericas].median().T</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>medianas.columns <span class="op">=</span> [<span class="st">"pagado_mediana"</span>, <span class="st">"castigado_mediana"</span>]</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>medianas[<span class="st">"diferencia_castigado_menos_pagado"</span>] <span class="op">=</span> medianas[<span class="st">"castigado_mediana"</span>] <span class="op">-</span> medianas[<span class="st">"pagado_mediana"</span>]</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>medianas.to_csv(SALIDA <span class="op">/</span> <span class="st">"medianas_por_resultado.csv"</span>, index_label<span class="op">=</span><span class="st">"variable"</span>)</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>display(medianas.<span class="bu">round</span>(<span class="dv">2</span>))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>                             pagado_mediana  ...  diferencia_castigado_menos_pagado
+loan_amnt                          12000.00  ...                            2400.00
+int_rate                              12.29  ...                               2.70
+installment                          373.73  ...                              27.59
+annual_inc                         65000.00  ...                           -5000.00
+log_annual_inc                        11.08  ...                              -0.08
+dti                                   17.10  ...                               2.70
+revol_util                            53.60  ...                               3.60
+antiguedad_crediticia_anios           14.92  ...                              -0.67
+
+[8 rows x 3 columns]</code></pre>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>muestra <span class="op">=</span> df.sample(n<span class="op">=</span><span class="bu">min</span>(<span class="dv">30000</span>, <span class="bu">len</span>(df)), random_state<span class="op">=</span><span class="dv">42</span>)</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">2</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">8</span>))</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, variable <span class="kw">in</span> <span class="bu">zip</span>(axes.flat, [<span class="st">"int_rate"</span>, <span class="st">"log_annual_inc"</span>, <span class="st">"dti"</span>, <span class="st">"revol_util"</span>]):</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> variable <span class="kw">in</span> muestra:</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>        sns.boxplot(data<span class="op">=</span>muestra, x<span class="op">=</span><span class="st">"incumplimiento"</span>, y<span class="op">=</span>variable, ax<span class="op">=</span>ax, showfliers<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>        ax.set_xticks([<span class="dv">0</span>, <span class="dv">1</span>], [<span class="st">"Pagado"</span>, <span class="st">"Castigado"</span>])</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>        ax.set_xlabel(<span class="st">""</span>)</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>        ax.set_title(variable)</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="03_analisis_exploratorio_files/figure-html/medianas-por-resultado-7.png" class="img-fluid figure-img" width="1152"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="c.6-análisis-temporal-por-cohorte-de-originación" class="level2">
+<h2 class="anchored" data-anchor-id="c.6-análisis-temporal-por-cohorte-de-originación">C.6 Análisis temporal por cohorte de originación</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>cohortes <span class="op">=</span> (df.dropna(subset<span class="op">=</span>[<span class="st">"fecha_emision"</span>])</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>            .groupby(df[<span class="st">"fecha_emision"</span>].dt.to_period(<span class="st">"Q"</span>))[<span class="st">"incumplimiento"</span>]</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>            .agg(prestamos_resueltos<span class="op">=</span><span class="st">"size"</span>, tasa_incumplimiento<span class="op">=</span><span class="st">"mean"</span>)</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>            .reset_index())</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>cohortes[<span class="st">"trimestre"</span>] <span class="op">=</span> cohortes[<span class="st">"fecha_emision"</span>].astype(<span class="bu">str</span>)</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>cohortes[<span class="st">"tasa_incumplimiento"</span>] <span class="op">*=</span> <span class="dv">100</span></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>cohortes[[<span class="st">"trimestre"</span>, <span class="st">"prestamos_resueltos"</span>, <span class="st">"tasa_incumplimiento"</span>]].to_csv(</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>    SALIDA <span class="op">/</span> <span class="st">"cohortes_trimestrales.csv"</span>, index<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>display(cohortes.tail(<span class="dv">16</span>).<span class="bu">round</span>(<span class="dv">2</span>))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>   fecha_emision  prestamos_resueltos  tasa_incumplimiento trimestre
+22        2012Q4                18711                15.54    2012Q4
+23        2013Q1                22706                15.02    2013Q1
+24        2013Q2                30668                16.25    2013Q2
+25        2013Q3                37569                15.56    2013Q3
+26        2013Q4                43850                15.46    2013Q4
+27        2014Q1                46232                16.75    2014Q1
+28        2014Q2                52213                18.67    2014Q2
+29        2014Q3                54989                18.85    2014Q3
+30        2014Q4                68034                19.41    2014Q4
+31        2015Q1                76395                20.14    2015Q1
+32        2015Q2                85526                20.57    2015Q2
+33        2015Q3                97371                20.21    2015Q3
+34        2015Q4               114120                19.82    2015Q4
+35        2016Q1               100755                22.27    2016Q1
+36        2016Q2                60367                25.94    2016Q2
+37        2016Q3                42333                26.69    2016Q3</code></pre>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">4</span>))</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>ax.plot(<span class="bu">range</span>(<span class="bu">len</span>(cohortes)), cohortes[<span class="st">"tasa_incumplimiento"</span>], marker<span class="op">=</span><span class="st">"o"</span>, markersize<span class="op">=</span><span class="dv">3</span>)</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>posiciones <span class="op">=</span> np.arange(<span class="dv">0</span>, <span class="bu">len</span>(cohortes), <span class="bu">max</span>(<span class="dv">1</span>, <span class="bu">len</span>(cohortes)<span class="op">//</span><span class="dv">10</span>))</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>ax.set_xticks(posiciones, cohortes.iloc[posiciones][<span class="st">"trimestre"</span>], rotation<span class="op">=</span><span class="dv">45</span>)</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Trimestre de originación"</span>, ylabel<span class="op">=</span><span class="st">"Incumplimiento (%)"</span>,</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>       title<span class="op">=</span><span class="st">"Tasa observada entre préstamos con resultado definitivo"</span>)</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="03_analisis_exploratorio_files/figure-html/cohortes-9.png" class="img-fluid figure-img" width="1152"></p>
+</figure>
+</div>
+</div>
+</div>
+<p><strong>Advertencia de sesgo:</strong> solo se conservaron préstamos pagados completamente o castigados. En cohortes recientes, los préstamos que siguen activos no aparecen en el denominador. Por ello, una variación temporal no debe interpretarse como la evolución del riesgo de todos los préstamos originados.</p>
+</section>
+<section id="c.7-correlaciones-entre-variables-numéricas" class="level2">
+<h2 class="anchored" data-anchor-id="c.7-correlaciones-entre-variables-numéricas">C.7 Correlaciones entre variables numéricas</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>cols <span class="op">=</span> [<span class="st">"incumplimiento"</span>, <span class="st">"loan_amnt"</span>, <span class="st">"int_rate"</span>, <span class="st">"installment"</span>, <span class="st">"log_annual_inc"</span>, <span class="st">"dti"</span>, <span class="st">"revol_util"</span>, <span class="st">"term_meses"</span>, <span class="st">"antiguedad_crediticia_anios"</span>]</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>cols <span class="op">=</span> [c <span class="cf">for</span> c <span class="kw">in</span> cols <span class="cf">if</span> c <span class="kw">in</span> df.columns]</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>correlaciones <span class="op">=</span> df[cols].corr(numeric_only<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>correlaciones.to_csv(SALIDA <span class="op">/</span> <span class="st">"matriz_correlaciones.csv"</span>, index_label<span class="op">=</span><span class="st">"variable"</span>)</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>display(correlaciones[<span class="st">"incumplimiento"</span>].sort_values(ascending<span class="op">=</span><span class="va">False</span>).to_frame(<span class="st">"correlacion_con_incumplimiento"</span>).<span class="bu">round</span>(<span class="dv">3</span>))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>                             correlacion_con_incumplimiento
+incumplimiento                                        1.000
+int_rate                                              0.261
+term_meses                                            0.193
+dti                                                   0.110
+loan_amnt                                             0.061
+revol_util                                            0.054
+installment                                           0.039
+antiguedad_crediticia_anios                          -0.035
+log_annual_inc                                       -0.067</code></pre>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">8</span>))</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>sns.heatmap(correlaciones, cmap<span class="op">=</span><span class="st">"vlag"</span>, center<span class="op">=</span><span class="dv">0</span>, vmin<span class="op">=-</span><span class="dv">1</span>, vmax<span class="op">=</span><span class="dv">1</span>, annot<span class="op">=</span><span class="va">True</span>, fmt<span class="op">=</span><span class="st">".2f"</span>, ax<span class="op">=</span>ax)</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="st">"Matriz de correlaciones (Pearson)"</span>)</span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="03_analisis_exploratorio_files/figure-html/matriz-correlacion-python-11.png" class="img-fluid figure-img" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>La correlación cuantifica la asociación lineal, pero no indica causalidad ni garantiza una relación útil para predecir por sí sola. Además, variables como <code>int_rate</code>, <code>grade</code> y <code>sub_grade</code> reflejan la evaluación crediticia previa del prestamista.</p>
+</section>
+<section id="c.8-análisis-estadístico-en-r" class="level2">
+<h2 class="anchored" data-anchor-id="c.8-análisis-estadístico-en-r">C.8 Análisis estadístico en R</h2>
+<p>Esta sección demuestra el uso <strong>real de R</strong>, separado del procesamiento y exportación de datos realizado en Python. R importa los resúmenes generados en <code>../outputs/eda/</code>, evitando volver a cargar más de un millón de filas en memoria.</p>
+<section id="c.8.1-frecuencias-y-distribución-de-incumplimiento-con-dplyr-y-ggplot2" class="level3">
+<h3 class="anchored" data-anchor-id="c.8.1-frecuencias-y-distribución-de-incumplimiento-con-dplyr-y-ggplot2">C.8.1 Frecuencias y distribución de incumplimiento con <code>dplyr</code> y <code>ggplot2</code></h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readr)</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(scales)</span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>carpeta_eda <span class="ot">&lt;-</span> <span class="st">"../outputs/eda"</span></span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>objetivo_r <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="fu">file.path</span>(carpeta_eda, <span class="st">"distribucion_objetivo.csv"</span>), <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(objetivo_r, <span class="at">digits =</span> <span class="dv">2</span>, <span class="at">caption =</span> <span class="st">"Distribución del resultado final"</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Distribución del resultado final</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">estado</th>
+<th style="text-align: right;">prestamos</th>
+<th style="text-align: right;">porcentaje</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Pagado completamente</td>
+<td style="text-align: right;">825214</td>
+<td style="text-align: right;">80.41</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Castigado</td>
+<td style="text-align: right;">201067</td>
+<td style="text-align: right;">19.59</td>
+</tr>
+</tbody>
+</table>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(objetivo_r, <span class="fu">aes</span>(<span class="at">x =</span> estado, <span class="at">y =</span> porcentaje, <span class="at">fill =</span> estado)) <span class="sc">+</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">width =</span> .<span class="dv">65</span>, <span class="at">show.legend =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"%.2f%%"</span>, porcentaje)), <span class="at">vjust =</span> <span class="sc">-</span><span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">95</span>)) <span class="sc">+</span></span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Resultado final de los préstamos"</span>, <span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="st">"Porcentaje"</span>) <span class="sc">+</span></span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="03_analisis_exploratorio_files/figure-html/analisis-r-objetivo-13.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="c.8.2-comparación-de-calificación-y-plazo-con-r" class="level3">
+<h3 class="anchored" data-anchor-id="c.8.2-comparación-de-calificación-y-plazo-con-r">C.8.2 Comparación de calificación y plazo con R</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>categorias_r <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="fu">file.path</span>(carpeta_eda, <span class="st">"tasas_por_categoria.csv"</span>), <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>grado_r <span class="ot">&lt;-</span> categorias_r <span class="sc">|&gt;</span></span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(variable <span class="sc">==</span> <span class="st">"grade"</span>, categoria <span class="sc">%in%</span> LETTERS[<span class="dv">1</span><span class="sc">:</span><span class="dv">7</span>]) <span class="sc">|&gt;</span></span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">categoria =</span> <span class="fu">factor</span>(categoria, <span class="at">levels =</span> LETTERS[<span class="dv">1</span><span class="sc">:</span><span class="dv">7</span>]))</span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>plazo_r <span class="ot">&lt;-</span> categorias_r <span class="sc">|&gt;</span></span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(variable <span class="sc">==</span> <span class="st">"term_meses"</span>)</span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(grado_r <span class="sc">|&gt;</span> <span class="fu">select</span>(categoria, prestamos, tasa_incumplimiento), <span class="at">digits =</span> <span class="dv">2</span>,</span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a>             <span class="at">caption =</span> <span class="st">"Incumplimiento por calificación"</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Incumplimiento por calificación</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">categoria</th>
+<th style="text-align: right;">prestamos</th>
+<th style="text-align: right;">tasa_incumplimiento</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">A</td>
+<td style="text-align: right;">182884</td>
+<td style="text-align: right;">6.01</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">B</td>
+<td style="text-align: right;">302426</td>
+<td style="text-align: right;">13.07</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">C</td>
+<td style="text-align: right;">281830</td>
+<td style="text-align: right;">21.83</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">D</td>
+<td style="text-align: right;">152078</td>
+<td style="text-align: right;">29.86</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">E</td>
+<td style="text-align: right;">74805</td>
+<td style="text-align: right;">38.50</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">F</td>
+<td style="text-align: right;">25924</td>
+<td style="text-align: right;">44.98</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">G</td>
+<td style="text-align: right;">6334</td>
+<td style="text-align: right;">49.73</td>
+</tr>
+</tbody>
+</table>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(plazo_r <span class="sc">|&gt;</span> <span class="fu">select</span>(categoria, prestamos, tasa_incumplimiento), <span class="at">digits =</span> <span class="dv">2</span>,</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>             <span class="at">caption =</span> <span class="st">"Incumplimiento por plazo"</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Incumplimiento por plazo</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">categoria</th>
+<th style="text-align: right;">prestamos</th>
+<th style="text-align: right;">tasa_incumplimiento</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">36</td>
+<td style="text-align: right;">778150</td>
+<td style="text-align: right;">15.27</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">60</td>
+<td style="text-align: right;">248131</td>
+<td style="text-align: right;">33.14</td>
+</tr>
+</tbody>
+</table>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(grado_r, <span class="fu">aes</span>(categoria, tasa_incumplimiento)) <span class="sc">+</span></span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">fill =</span> <span class="st">"#287e91"</span>) <span class="sc">+</span></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"%.1f%%"</span>, tasa_incumplimiento)), <span class="at">vjust =</span> <span class="sc">-</span><span class="fl">0.35</span>, <span class="at">size =</span> <span class="fl">3.5</span>) <span class="sc">+</span></span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">expand =</span> <span class="fu">expansion</span>(<span class="at">mult =</span> <span class="fu">c</span>(<span class="dv">0</span>, .<span class="dv">12</span>))) <span class="sc">+</span></span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Riesgo observado por calificación"</span>, <span class="at">x =</span> <span class="st">"Calificación"</span>, <span class="at">y =</span> <span class="st">"Incumplimiento (%)"</span>) <span class="sc">+</span></span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="03_analisis_exploratorio_files/figure-html/analisis-r-categorias-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="c.8.3-interpretación-estadística-de-correlaciones-con-r" class="level3">
+<h3 class="anchored" data-anchor-id="c.8.3-interpretación-estadística-de-correlaciones-con-r">C.8.3 Interpretación estadística de correlaciones con R</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>corr_r <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="fu">file.path</span>(carpeta_eda, <span class="st">"matriz_correlaciones.csv"</span>), <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>nombre_primera <span class="ot">&lt;-</span> <span class="fu">names</span>(corr_r)[<span class="dv">1</span>]</span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>corr_larga <span class="ot">&lt;-</span> corr_r <span class="sc">|&gt;</span></span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">variable_fila =</span> <span class="fu">all_of</span>(nombre_primera)) <span class="sc">|&gt;</span></span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="sc">-</span>variable_fila, <span class="at">names_to =</span> <span class="st">"variable_columna"</span>, <span class="at">values_to =</span> <span class="st">"correlacion"</span>)</span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(corr_larga, <span class="fu">aes</span>(variable_fila, variable_columna, <span class="at">fill =</span> correlacion)) <span class="sc">+</span></span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>() <span class="sc">+</span></span>
+<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"%.2f"</span>, correlacion)), <span class="at">size =</span> <span class="fl">2.7</span>) <span class="sc">+</span></span>
+<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_gradient2</span>(<span class="at">low =</span> <span class="st">"#bd5c58"</span>, <span class="at">mid =</span> <span class="st">"white"</span>, <span class="at">high =</span> <span class="st">"#287e91"</span>, <span class="at">midpoint =</span> <span class="dv">0</span>, <span class="at">limits =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_equal</span>() <span class="sc">+</span></span>
+<span id="cb36-12"><a href="#cb36-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Relaciones lineales entre variables"</span>, <span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="cn">NULL</span>, <span class="at">fill =</span> <span class="st">"Correlación"</span>) <span class="sc">+</span></span>
+<span id="cb36-13"><a href="#cb36-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">10</span>) <span class="sc">+</span></span>
+<span id="cb36-14"><a href="#cb36-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">45</span>, <span class="at">hjust =</span> <span class="dv">1</span>))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="03_analisis_exploratorio_files/figure-html/analisis-r-correlaciones-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="c.9-análisis-exploratorio-multivariado" class="level2">
+<h2 class="anchored" data-anchor-id="c.9-análisis-exploratorio-multivariado">C.9 Análisis exploratorio multivariado</h2>
+<p>En esta sección se examina cómo cambia el incumplimiento al considerar <strong>más de una característica explicativa a la vez</strong>. El propósito es explorar patrones conjuntos, no ajustar un nuevo modelo ni volver a utilizar el conjunto de prueba.</p>
+<section id="c.9.1-cruce-entre-calificación-y-plazo-del-préstamo" class="level3">
+<h3 class="anchored" data-anchor-id="c.9.1-cruce-entre-calificación-y-plazo-del-préstamo">C.9.1 Cruce entre calificación y plazo del préstamo</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>cruce <span class="op">=</span> (df.groupby([<span class="st">"grade"</span>, <span class="st">"term_meses"</span>], dropna<span class="op">=</span><span class="va">False</span>)[<span class="st">"incumplimiento"</span>]</span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>         .agg(prestamos<span class="op">=</span><span class="st">"size"</span>, incumplidos<span class="op">=</span><span class="st">"sum"</span>, tasa_incumplimiento<span class="op">=</span><span class="st">"mean"</span>)</span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>         .reset_index())</span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>cruce[<span class="st">"tasa_incumplimiento"</span>] <span class="op">*=</span> <span class="dv">100</span></span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a>cruce.to_csv(SALIDA <span class="op">/</span> <span class="st">"cruce_grade_plazo.csv"</span>, index<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a>display(cruce.sort_values([<span class="st">"grade"</span>, <span class="st">"term_meses"</span>]).<span class="bu">round</span>(<span class="dv">2</span>))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>   grade  term_meses  prestamos  incumplidos  tasa_incumplimiento
+0      A          36     177935        10448                 5.87
+1      A          60       4949          539                10.89
+2      B          36     266558        32806                12.31
+3      B          60      35868         6719                18.73
+4      C          36     205407        40182                19.56
+5      C          60      76423        21355                27.94
+6      D          36      94316        24182                25.64
+7      D          60      57762        21224                36.74
+8      E          36      27221         8653                31.79
+9      E          60      47584        20149                42.34
+10     F          36       5830         2166                37.15
+11     F          60      20094         9494                47.25
+12     G          36        883          411                46.55
+13     G          60       5451         2739                50.25</code></pre>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>matriz <span class="op">=</span> cruce.pivot(index<span class="op">=</span><span class="st">"grade"</span>, columns<span class="op">=</span><span class="st">"term_meses"</span>, values<span class="op">=</span><span class="st">"tasa_incumplimiento"</span>)</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">5</span>))</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>sns.heatmap(matriz, annot<span class="op">=</span><span class="va">True</span>, fmt<span class="op">=</span><span class="st">".1f"</span>, cmap<span class="op">=</span><span class="st">"YlOrRd"</span>, ax<span class="op">=</span>ax)</span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Plazo (meses)"</span>, ylabel<span class="op">=</span><span class="st">"Calificación"</span>, title<span class="op">=</span><span class="st">"Incumplimiento (%) según calificación y plazo"</span>)</span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="03_analisis_exploratorio_files/figure-html/cruce-grado-plazo-1.png" class="img-fluid figure-img" width="768"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Las diferencias entre celdas deben leerse junto con el tamaño de cada grupo. No debe atribuirse automáticamente al plazo una diferencia que podría estar relacionada con otras características de los préstamos.</p>
+</section>
+<section id="c.9.2-interacción-entre-plazo-calificación-e-incumplimiento-en-r" class="level3">
+<h3 class="anchored" data-anchor-id="c.9.2-interacción-entre-plazo-calificación-e-incumplimiento-en-r">C.9.2 Interacción entre plazo, calificación e incumplimiento en R</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>cruce_r <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="fu">file.path</span>(carpeta_eda, <span class="st">"cruce_grade_plazo.csv"</span>), <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>cruce_r <span class="ot">&lt;-</span> cruce_r <span class="sc">|&gt;</span></span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(grade <span class="sc">%in%</span> LETTERS[<span class="dv">1</span><span class="sc">:</span><span class="dv">7</span>]) <span class="sc">|&gt;</span></span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">grade =</span> <span class="fu">factor</span>(grade, <span class="at">levels =</span> LETTERS[<span class="dv">1</span><span class="sc">:</span><span class="dv">7</span>]),</span>
+<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a>         <span class="at">term_meses =</span> <span class="fu">factor</span>(term_meses))</span>
+<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(cruce_r, <span class="fu">aes</span>(grade, tasa_incumplimiento, <span class="at">color =</span> term_meses, <span class="at">group =</span> term_meses)) <span class="sc">+</span></span>
+<span id="cb40-8"><a href="#cb40-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> .<span class="dv">9</span>) <span class="sc">+</span></span>
+<span id="cb40-9"><a href="#cb40-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="fl">2.5</span>) <span class="sc">+</span></span>
+<span id="cb40-10"><a href="#cb40-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Incumplimiento según calificación y plazo"</span>,</span>
+<span id="cb40-11"><a href="#cb40-11" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Comparación simultánea de tres variables"</span>,</span>
+<span id="cb40-12"><a href="#cb40-12" aria-hidden="true" tabindex="-1"></a>       <span class="at">x =</span> <span class="st">"Calificación"</span>, <span class="at">y =</span> <span class="st">"Incumplimiento (%)"</span>, <span class="at">color =</span> <span class="st">"Plazo (meses)"</span>) <span class="sc">+</span></span>
+<span id="cb40-13"><a href="#cb40-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="03_analisis_exploratorio_files/figure-html/cruce-multivariado-r-3.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="c.9.3-ingreso-endeudamiento-e-incumplimiento" class="level3">
+<h3 class="anchored" data-anchor-id="c.9.3-ingreso-endeudamiento-e-incumplimiento">C.9.3 Ingreso, endeudamiento e incumplimiento</h3>
+<p>Se forman segmentos utilizando los <strong>cuartiles del conjunto de entrenamiento</strong>. Este procedimiento permite comparar simultáneamente ingreso anual, relación deuda-ingreso e incumplimiento, sin seleccionar umbrales basados en la muestra de prueba.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>segmentos <span class="op">=</span> df[[<span class="st">"annual_inc"</span>, <span class="st">"dti"</span>, <span class="st">"incumplimiento"</span>]].copy()</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>segmentos[<span class="st">"annual_inc"</span>] <span class="op">=</span> pd.to_numeric(segmentos[<span class="st">"annual_inc"</span>], errors<span class="op">=</span><span class="st">"coerce"</span>)</span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>segmentos[<span class="st">"dti"</span>] <span class="op">=</span> pd.to_numeric(segmentos[<span class="st">"dti"</span>], errors<span class="op">=</span><span class="st">"coerce"</span>)</span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>segmentos <span class="op">=</span> segmentos.dropna(subset<span class="op">=</span>[<span class="st">"annual_inc"</span>, <span class="st">"dti"</span>, <span class="st">"incumplimiento"</span>])</span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>segmentos <span class="op">=</span> segmentos[(segmentos[<span class="st">"annual_inc"</span>] <span class="op">&gt;=</span> <span class="dv">0</span>) <span class="op">&amp;</span> (segmentos[<span class="st">"dti"</span>] <span class="op">&gt;=</span> <span class="dv">0</span>)]</span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a>segmentos[<span class="st">"cuartil_ingreso"</span>] <span class="op">=</span> pd.qcut(segmentos[<span class="st">"annual_inc"</span>].rank(method<span class="op">=</span><span class="st">"first"</span>), <span class="dv">4</span>,</span>
+<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a>                                         labels<span class="op">=</span>[<span class="st">"Ingreso Q1"</span>, <span class="st">"Ingreso Q2"</span>, <span class="st">"Ingreso Q3"</span>, <span class="st">"Ingreso Q4"</span>])</span>
+<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a>segmentos[<span class="st">"cuartil_dti"</span>] <span class="op">=</span> pd.qcut(segmentos[<span class="st">"dti"</span>].rank(method<span class="op">=</span><span class="st">"first"</span>), <span class="dv">4</span>,</span>
+<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a>                                     labels<span class="op">=</span>[<span class="st">"DTI Q1"</span>, <span class="st">"DTI Q2"</span>, <span class="st">"DTI Q3"</span>, <span class="st">"DTI Q4"</span>])</span>
+<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a>tabla_segmentos <span class="op">=</span> (segmentos.groupby([<span class="st">"cuartil_ingreso"</span>, <span class="st">"cuartil_dti"</span>], observed<span class="op">=</span><span class="va">True</span>)[<span class="st">"incumplimiento"</span>]</span>
+<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a>                  .agg(prestamos<span class="op">=</span><span class="st">"size"</span>, tasa_incumplimiento<span class="op">=</span><span class="st">"mean"</span>).reset_index())</span>
+<span id="cb41-12"><a href="#cb41-12" aria-hidden="true" tabindex="-1"></a>tabla_segmentos[<span class="st">"tasa_incumplimiento"</span>] <span class="op">*=</span> <span class="dv">100</span></span>
+<span id="cb41-13"><a href="#cb41-13" aria-hidden="true" tabindex="-1"></a>tabla_segmentos.to_csv(SALIDA <span class="op">/</span> <span class="st">"cruce_ingreso_dti.csv"</span>, index<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb41-14"><a href="#cb41-14" aria-hidden="true" tabindex="-1"></a>display(tabla_segmentos.<span class="bu">round</span>(<span class="dv">2</span>))</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>   cuartil_ingreso cuartil_dti  prestamos  tasa_incumplimiento
+0       Ingreso Q1      DTI Q1      51058                17.68
+1       Ingreso Q1      DTI Q2      52434                20.41
+2       Ingreso Q1      DTI Q3      65695                22.38
+3       Ingreso Q1      DTI Q4      87384                27.32
+4       Ingreso Q2      DTI Q1      52500                15.43
+5       Ingreso Q2      DTI Q2      61161                18.39
+6       Ingreso Q2      DTI Q3      68931                21.43
+7       Ingreso Q2      DTI Q4      73978                26.78
+8       Ingreso Q3      DTI Q1      62327                14.23
+9       Ingreso Q3      DTI Q2      68832                16.71
+10      Ingreso Q3      DTI Q3      66567                19.83
+11      Ingreso Q3      DTI Q4      58844                25.39
+12      Ingreso Q4      DTI Q1      90686                12.52
+13      Ingreso Q4      DTI Q2      74143                14.93
+14      Ingreso Q4      DTI Q3      55377                17.52
+15      Ingreso Q4      DTI Q4      36364                22.53</code></pre>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">5</span>))</span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>mat <span class="op">=</span> tabla_segmentos.pivot(index<span class="op">=</span><span class="st">"cuartil_ingreso"</span>, columns<span class="op">=</span><span class="st">"cuartil_dti"</span>, values<span class="op">=</span><span class="st">"tasa_incumplimiento"</span>)</span>
+<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>sns.heatmap(mat, annot<span class="op">=</span><span class="va">True</span>, fmt<span class="op">=</span><span class="st">".1f"</span>, cmap<span class="op">=</span><span class="st">"YlOrRd"</span>, ax<span class="op">=</span>ax)</span>
+<span id="cb43-4"><a href="#cb43-4" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Cuartil de relación deuda-ingreso"</span>, ylabel<span class="op">=</span><span class="st">"Cuartil de ingreso anual"</span>,</span>
+<span id="cb43-5"><a href="#cb43-5" aria-hidden="true" tabindex="-1"></a>       title<span class="op">=</span><span class="st">"Incumplimiento (%) según ingreso y endeudamiento"</span>)</span>
+<span id="cb43-6"><a href="#cb43-6" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb43-7"><a href="#cb43-7" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="03_analisis_exploratorio_files/figure-html/ingreso-dti-multivariado-1.png" class="img-fluid figure-img" width="864"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Los cuartiles son grupos de tamaño similar dentro de cada variable. <strong>Ingreso Q1</strong> representa el 25% inferior de ingresos; <strong>DTI Q4</strong>, el 25% superior de relación deuda-ingreso. Los resultados describen asociaciones conjuntas y no efectos independientes o causales.</p>
+</section>
+<section id="c.9.4-visualización-multivariada-con-r" class="level3">
+<h3 class="anchored" data-anchor-id="c.9.4-visualización-multivariada-con-r">C.9.4 Visualización multivariada con R</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a>segmentos_r <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="fu">file.path</span>(carpeta_eda, <span class="st">"cruce_ingreso_dti.csv"</span>), <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>segmentos_r <span class="ot">&lt;-</span> segmentos_r <span class="sc">|&gt;</span></span>
+<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">cuartil_ingreso =</span> <span class="fu">factor</span>(cuartil_ingreso, <span class="at">levels =</span> <span class="fu">paste</span>(<span class="st">"Ingreso Q"</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="at">sep =</span> <span class="st">""</span>)),</span>
+<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">cuartil_dti =</span> <span class="fu">factor</span>(cuartil_dti, <span class="at">levels =</span> <span class="fu">paste</span>(<span class="st">"DTI Q"</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="at">sep =</span> <span class="st">""</span>)))</span>
+<span id="cb44-5"><a href="#cb44-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(segmentos_r, <span class="fu">aes</span>(cuartil_dti, cuartil_ingreso, <span class="at">fill =</span> tasa_incumplimiento)) <span class="sc">+</span></span>
+<span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="at">color =</span> <span class="st">"white"</span>, <span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb44-8"><a href="#cb44-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"%.1f%%"</span>, tasa_incumplimiento)), <span class="at">size =</span> <span class="dv">4</span>) <span class="sc">+</span></span>
+<span id="cb44-9"><a href="#cb44-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_gradient</span>(<span class="at">low =</span> <span class="st">"#d6f0e8"</span>, <span class="at">high =</span> <span class="st">"#ad3c32"</span>) <span class="sc">+</span></span>
+<span id="cb44-10"><a href="#cb44-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Ingreso y endeudamiento: patrón conjunto"</span>,</span>
+<span id="cb44-11"><a href="#cb44-11" aria-hidden="true" tabindex="-1"></a>       <span class="at">x =</span> <span class="st">"Relación deuda-ingreso"</span>, <span class="at">y =</span> <span class="st">"Ingreso anual"</span>, <span class="at">fill =</span> <span class="st">"Incumplimiento (%)"</span>) <span class="sc">+</span></span>
+<span id="cb44-12"><a href="#cb44-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="03_analisis_exploratorio_files/figure-html/ingreso-dti-r-3.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="c.10-síntesis-automática-de-hallazgos" class="level2">
+<h2 class="anchored" data-anchor-id="c.10-síntesis-automática-de-hallazgos">C.10 Síntesis automática de hallazgos</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>porcentaje <span class="op">=</span> <span class="dv">100</span> <span class="op">*</span> df[<span class="st">"incumplimiento"</span>].mean()</span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"1. La tasa de incumplimiento entre los préstamos resueltos del entrenamiento fue </span><span class="sc">{</span>porcentaje<span class="sc">:.2f}</span><span class="ss">%."</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>1. La tasa de incumplimiento entre los préstamos resueltos del entrenamiento fue 19.59%.</code></pre>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> categoria <span class="kw">in</span> [<span class="st">"A"</span>, <span class="st">"G"</span>]:</span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>    fila <span class="op">=</span> cruce[cruce[<span class="st">"grade"</span>].eq(categoria)]</span>
+<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> fila.empty:</span>
+<span id="cb47-4"><a href="#cb47-4" aria-hidden="true" tabindex="-1"></a>        total <span class="op">=</span> fila[<span class="st">"prestamos"</span>].<span class="bu">sum</span>()</span>
+<span id="cb47-5"><a href="#cb47-5" aria-hidden="true" tabindex="-1"></a>        tasa <span class="op">=</span> <span class="dv">100</span> <span class="op">*</span> fila[<span class="st">"incumplidos"</span>].<span class="bu">sum</span>() <span class="op">/</span> total</span>
+<span id="cb47-6"><a href="#cb47-6" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"2. Calificación </span><span class="sc">{</span>categoria<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>tasa<span class="sc">:.2f}</span><span class="ss">% de incumplimiento (</span><span class="sc">{</span>total<span class="sc">:,}</span><span class="ss"> préstamos)."</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>2. Calificación A: 6.01% de incumplimiento (182,884 préstamos).
+2. Calificación G: 49.73% de incumplimiento (6,334 préstamos).</code></pre>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> plazo <span class="kw">in</span> [<span class="dv">36</span>, <span class="dv">60</span>]:</span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>    serie <span class="op">=</span> df.loc[df[<span class="st">"term_meses"</span>].eq(plazo), <span class="st">"incumplimiento"</span>]</span>
+<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="bu">len</span>(serie):</span>
+<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"3. Plazo </span><span class="sc">{</span>plazo<span class="sc">}</span><span class="ss"> meses: </span><span class="sc">{</span><span class="dv">100</span><span class="op">*</span>serie<span class="sc">.</span>mean()<span class="sc">:.2f}</span><span class="ss">% de incumplimiento (</span><span class="sc">{</span><span class="bu">len</span>(serie)<span class="sc">:,}</span><span class="ss"> préstamos)."</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>3. Plazo 36 meses: 15.27% de incumplimiento (778,150 préstamos).
+3. Plazo 60 meses: 33.14% de incumplimiento (248,131 préstamos).</code></pre>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"4. Revisar el mapa de calor de calificación y plazo y los segmentos de ingreso y DTI antes de interpretar sus patrones."</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>4. Revisar el mapa de calor de calificación y plazo y los segmentos de ingreso y DTI antes de interpretar sus patrones.</code></pre>
+</div>
+<details class="code-fold">
+<summary>Código</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"5. Estas observaciones no demuestran causalidad ni permiten inferir directamente el riesgo de préstamos activos."</span>)</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>5. Estas observaciones no demuestran causalidad ni permiten inferir directamente el riesgo de préstamos activos.</code></pre>
+</div>
+</div>
+</section>
+<section id="c.11-conclusiones-y-límites-del-eda" class="level2">
+<h2 class="anchored" data-anchor-id="c.11-conclusiones-y-límites-del-eda">C.11 Conclusiones y límites del EDA</h2>
+<p>El análisis univariado permite conocer las distribuciones, frecuencias y posibles valores extremos. El bivariado identifica diferencias entre préstamos pagados y castigados, y el multivariado explora patrones conjuntos por calificación, plazo, ingreso y endeudamiento.</p>
+<p><strong>Principales precauciones:</strong></p>
+<ul>
+<li>Se observan únicamente préstamos con resultado final conocido: existe riesgo de <strong>sesgo de selección y maduración</strong>, especialmente en cohortes recientes.</li>
+<li>Las diferencias entre grupos no prueban causalidad.</li>
+<li>La calificación y la tasa de interés ya reflejan la evaluación del prestamista.</li>
+<li>Los grupos pequeños deben interpretarse con cautela; las tablas incluyen su tamaño.</li>
+<li>Los patrones descriptivos no sustituyen la evaluación predictiva fuera de muestra realizada en las fases 04 y 05.</li>
+</ul>
+</section>
+<section id="c.12-archivos-generados-y-utilidad-para-power-bi" class="level2">
+<h2 class="anchored" data-anchor-id="c.12-archivos-generados-y-utilidad-para-power-bi">C.12 Archivos generados y utilidad para Power BI</h2>
+<p>Los resultados agregados se exportan a <code>../outputs/eda/</code>, incluyendo:</p>
+<ul>
+<li><code>distribucion_objetivo.csv</code>: volumen y porcentaje por estado.</li>
+<li><code>resumen_univariado.csv</code>: medidas descriptivas y valores faltantes.</li>
+<li><code>tasas_por_categoria.csv</code>: incumplimiento por calificación, plazo y otras categorías.</li>
+<li><code>medianas_por_resultado.csv</code>: comparación de variables numéricas.</li>
+<li><code>cohortes_trimestrales.csv</code>: evolución temporal de préstamos resueltos.</li>
+<li><code>matriz_correlaciones.csv</code>: asociaciones lineales.</li>
+<li><code>cruce_grade_plazo.csv</code>: análisis conjunto de calificación y plazo.</li>
+<li><code>cruce_ingreso_dti.csv</code>: análisis conjunto de ingreso y endeudamiento.</li>
+</ul>
+<p>Estos archivos pueden alimentar visualizaciones agregadas en Power BI, pero <strong>no constituyen por sí mismos un dashboard interactivo completo</strong>. Para filtros combinados sobre registros individuales convendrá preparar una tabla de hechos específica, conservando el corte de entrenamiento y evitando datos personales.</p>
+</section>
+<section id="c.13-reproducción-y-dependencias" class="level2">
+<h2 class="anchored" data-anchor-id="c.13-reproducción-y-dependencias">C.13 Reproducción y dependencias</h2>
+<p>Desde la carpeta <code>reports/</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb55"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Instalar paquetes R (solo la primera vez):</span></span>
+<span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">"install.packages(c('reticulate','dplyr','ggplot2','readr','tidyr','knitr','scales'))"</span></span>
+<span id="cb55-3"><a href="#cb55-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-4"><a href="#cb55-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Python debe disponer de pandas, numpy, matplotlib, seaborn y pyarrow.</span></span>
+<span id="cb55-5"><a href="#cb55-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Asegura que reticulate apunte al mismo Python del entorno lendingclub-python.</span></span>
+<span id="cb55-6"><a href="#cb55-6" aria-hidden="true" tabindex="-1"></a><span class="co"># En Windows PowerShell, si fuera necesario:</span></span>
+<span id="cb55-7"><a href="#cb55-7" aria-hidden="true" tabindex="-1"></a><span class="co"># $env:RETICULATE_PYTHON = 'C:/ruta/a/tu/entorno/python.exe'</span></span>
+<span id="cb55-8"><a href="#cb55-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-9"><a href="#cb55-9" aria-hidden="true" tabindex="-1"></a><span class="ex">quarto</span> render 03_analisis_exploratorio.qmd <span class="at">--to</span> html</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Compatibilidad:</strong> este informe no declara <code>jupyter: lendingclub-python</code> porque utiliza <strong>Knitr + Reticulate</strong>. Si el proyecto anterior se ejecutaba con Jupyter, es normal que debas instalar los paquetes R y configurar el intérprete de Python antes del primer renderizado. Se requiere disponer de R, Quarto y Python en el equipo.</p>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copiado");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copiado");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
