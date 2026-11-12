@@ -1,0 +1,1048 @@
+---
+title: "Análisis de Riesgo Crediticio - LendingClub"
+subtitle: "Fase 2: Auditoría de calidad y preprocesamiento inicial"
+author: "Cristian Guzman"
+lang: es
+format:
+  html:
+    toc: true
+    number-sections: false
+    code-fold: true
+  pdf:
+    toc: true
+    number-sections: false
+jupyter: lendingclub-python
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+# Parte B: Limpieza y preprocesamiento
+
+## B.1 Objetivo
+
+El objetivo de esta fase es evaluar la calidad de los datos originales e identificar inconsistencias, valores faltantes, registros duplicados y variables que requieren transformaciones.
+
+Las decisiones de limpieza se realizarán considerando el significado de cada variable y su utilidad para el análisis estadístico y predictivo.
+
+Durante esta primera etapa se realizará una auditoría de calidad sin modificar el conjunto de datos original. Los resultados permitirán establecer criterios de limpieza fundamentados.
+
+## B.2 Carga del dataset original
+
+Se importan las librerías necesarias para el procesamiento y análisis de los datos. Posteriormente, se carga el archivo original de LendingClub.
+
+```{python}
+#| label: carga-datos
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from pathlib import Path
+
+sns.set_theme(style="whitegrid")
+
+ruta = Path("../data/raw/loan.csv")
+
+df = pd.read_csv(ruta, low_memory=False)
+
+print("Dataset cargado correctamente")
+print("Filas originales:", df.shape[0])
+print("Columnas originales:", df.shape[1])
+```
+
+Se conserva el archivo original sin alteraciones para garantizar que el proceso de análisis sea reproducible.
+
+## B.3 Auditoría general de calidad
+
+Se construye una tabla de auditoría para evaluar las 145 variables del conjunto de datos.
+
+Para cada columna se identifica su tipo de dato, cantidad de valores faltantes, porcentaje de valores faltantes, número de valores únicos y porcentaje de información disponible.
+
+```{python}
+#| label: auditoria-calidad
+
+nulos = df.isna().sum()
+
+auditoria = pd.DataFrame({
+    "Variable": df.columns,
+    "Tipo": df.dtypes.astype(str).values,
+    "Nulos": nulos.values,
+    "Porcentaje_nulos": nulos.values / len(df) * 100,
+    "Valores_unicos": df.nunique(dropna=True).values
+})
+
+auditoria["Porcentaje_disponible"] = (
+    100 - auditoria["Porcentaje_nulos"]
+)
+
+auditoria = auditoria.sort_values(
+    "Porcentaje_nulos",
+    ascending=False
+).reset_index(drop=True)
+
+display(auditoria.head(30).round(2))
+```
+
+Esta auditoría permite identificar variables con problemas de disponibilidad y distinguir entre columnas completamente vacías y columnas parcialmente incompletas.
+
+Un porcentaje elevado de valores faltantes no implica necesariamente que una variable deba eliminarse, ya que algunos campos representan situaciones especiales que no aplican a todos los préstamos.
+
+## B.4 Evaluación de valores faltantes
+
+### B.4.1 Clasificación por porcentaje de valores faltantes
+
+Las variables se clasifican en cuatro categorías según la proporción de información ausente.
+
+Los umbrales utilizados son criterios exploratorios y no representan reglas automáticas para eliminar columnas.
+
+```{python}
+#| label: clasificacion-nulos
+
+def clasificar_nulos(porcentaje):
+    if porcentaje == 0:
+        return "Sin nulos"
+    elif porcentaje <= 20:
+        return "Bajo (0-20%)"
+    elif porcentaje <= 50:
+        return "Moderado (20-50%)"
+    else:
+        return "Alto (>50%)"
+
+auditoria["Nivel_nulos"] = (
+    auditoria["Porcentaje_nulos"]
+    .apply(clasificar_nulos)
+)
+
+resumen_nulos = (
+    auditoria["Nivel_nulos"]
+    .value_counts()
+)
+
+display(resumen_nulos.to_frame("Cantidad"))
+```
+
+Esta clasificación permite conocer cuántas variables presentan problemas leves, moderados o elevados de disponibilidad.
+
+### B.4.2 Visualización de los valores faltantes
+
+Se representan las 20 variables con mayor porcentaje de valores faltantes.
+
+```{python}
+#| label: grafico-nulos
+#| fig-cap: "Variables con mayor porcentaje de valores faltantes"
+
+top_nulos = auditoria.head(20)
+
+plt.figure(figsize=(10, 7))
+
+sns.barplot(
+    data=top_nulos,
+    x="Porcentaje_nulos",
+    y="Variable",
+    color="steelblue"
+)
+
+plt.title(
+    "20 variables con mayor porcentaje de valores faltantes"
+)
+plt.xlabel("Porcentaje de valores faltantes (%)")
+plt.ylabel("Variable")
+plt.xlim(0, 105)
+
+plt.tight_layout()
+plt.show()
+```
+
+La visualización facilita la identificación de las columnas con menor disponibilidad de información.
+
+Las variables relacionadas con dificultades económicas, acuerdos de deuda y segundos solicitantes requieren especial atención, debido a que su ausencia puede estar asociada con características específicas de los préstamos.
+
+## B.5 Revisión de registros duplicados
+
+Se verifica la existencia de filas completamente duplicadas en el conjunto de datos original.
+
+```{python}
+#| label: revision-duplicados
+
+duplicados = df.duplicated().sum()
+
+porcentaje_duplicados = (
+    duplicados / len(df)
+) * 100
+
+print("Registros duplicados:", duplicados)
+print(
+    "Porcentaje de duplicados:",
+    round(porcentaje_duplicados, 2), "%"
+)
+```
+
+La ausencia de filas completamente duplicadas no garantiza que todos los préstamos sean únicos, especialmente porque las variables de identificación pueden estar incompletas.
+
+Por ello, este resultado debe interpretarse como una comprobación de duplicados exactos y no como una validación definitiva de unicidad.
+
+## B.6 Identificación de variables problemáticas
+
+### B.6.1 Columnas vacías y constantes
+
+Se identifican las columnas que no contienen información y aquellas que presentan un único valor observado.
+
+```{python}
+#| label: variables-problematicas
+
+columnas_vacias = auditoria.loc[
+    auditoria["Porcentaje_nulos"] == 100,
+    "Variable"
+].tolist()
+
+columnas_constantes = auditoria.loc[
+    (auditoria["Valores_unicos"] == 1) &
+    (auditoria["Porcentaje_nulos"] < 100),
+    "Variable"
+].tolist()
+
+print("Cantidad de columnas vacías:", len(columnas_vacias))
+print("Columnas completamente vacías:")
+print(columnas_vacias)
+
+print()
+
+print("Cantidad de columnas constantes:", len(columnas_constantes))
+print("Columnas con un único valor observado:")
+print(columnas_constantes)
+```
+
+Las columnas completamente vacías no aportan información para el análisis de esta versión del dataset.
+
+Por otra parte, las variables constantes pueden tener una utilidad predictiva limitada, aunque su significado debe revisarse antes de excluirlas.
+
+### B.6.2 Revisión de rangos financieros
+
+Se analizan los valores mínimos, máximos y principales medidas descriptivas de variables financieras relevantes.
+
+```{python}
+#| label: revision-rangos
+
+variables_financieras = [
+    "loan_amnt",
+    "annual_inc",
+    "int_rate",
+    "dti",
+    "installment"
+]
+
+resumen_financiero = df[variables_financieras].agg([
+    "count",
+    "min",
+    "median",
+    "mean",
+    "max",
+    "std"
+]).T
+
+display(resumen_financiero.round(2))
+```
+
+Esta revisión permite detectar valores extremos o potencialmente inconsistentes.
+
+En particular, las variables de ingreso anual y relación deuda-ingreso requieren un análisis posterior de valores atípicos.
+
+No se aplicarán correcciones automáticas, ya que primero es necesario determinar si estos valores corresponden a observaciones válidas, valores especiales o errores.
+
+## B.7 Exportación de los resultados de auditoría
+
+Se guarda la tabla de auditoría para facilitar su consulta durante las siguientes fases del proyecto.
+
+```{python}
+#| label: guardar-auditoria
+
+salida = Path("../outputs/tables")
+salida.mkdir(parents=True, exist_ok=True)
+
+archivo_salida = salida / "auditoria_calidad.csv"
+
+auditoria.to_csv(
+    archivo_salida,
+    index=False,
+    encoding="utf-8-sig"
+)
+
+print("Auditoría guardada correctamente")
+print("Archivo:", archivo_salida)
+```
+
+El archivo generado contiene los indicadores de calidad correspondientes a todas las variables del conjunto de datos original.
+
+La exportación de esta tabla no modifica los registros originales.
+
+## B.8 Conclusiones preliminares
+
+La auditoría inicial permite identificar las principales características de calidad del conjunto de datos de LendingClub.
+
+Se evaluaron los tipos de datos, valores faltantes, registros duplicados, columnas completamente vacías, variables constantes y rangos de las principales variables financieras.
+
+Los resultados obtenidos servirán para establecer criterios de limpieza y preprocesamiento, evitando eliminar información relevante sin una justificación estadística o conceptual.
+
+La presencia de valores faltantes deberá evaluarse considerando el significado de cada variable, especialmente cuando la ausencia de información corresponda a situaciones particulares de los préstamos.
+
+Asimismo, los valores extremos detectados en variables financieras deberán analizarse mediante técnicas estadísticas antes de determinar su tratamiento.
+
+En las siguientes etapas se establecerán las variables que deben conservarse, transformarse o excluirse, considerando los objetivos descriptivos y predictivos del proyecto.
+
+**Esta fase constituye una auditoría de calidad; todavía no se han aplicado transformaciones ni eliminaciones sobre los datos originales.**
+
+## B.9 Selección inicial de variables para el modelado
+
+Se seleccionan variables financieras y crediticias que pueden estar disponibles al momento de originar un préstamo.
+
+Se excluyen las variables relacionadas con pagos realizados, recuperaciones y acuerdos posteriores, para evitar fugas de información en los modelos predictivos.
+
+```{python}
+#| label: seleccion-variables
+
+variables_modelo = [
+    "loan_status",
+    "issue_d",
+    "loan_amnt",
+    "term",
+    "int_rate",
+    "installment",
+    "grade",
+    "sub_grade",
+    "emp_length",
+    "home_ownership",
+    "annual_inc",
+    "verification_status",
+    "purpose",
+    "dti",
+    "delinq_2yrs",
+    "earliest_cr_line",
+    "inq_last_6mths",
+    "open_acc",
+    "pub_rec",
+    "revol_bal",
+    "revol_util",
+    "total_acc",
+    "application_type",
+    "mort_acc",
+    "pub_rec_bankruptcies"
+]
+
+df_trabajo = df[variables_modelo].copy()
+
+print("Filas:", len(df_trabajo))
+print("Variables:", df_trabajo.shape[1])
+```
+
+### B.9.1 Diccionario de variables seleccionadas
+
+El siguiente diccionario describe las variables utilizadas en la selección inicial para el análisis de riesgo crediticio.
+
+| Variable | Descripción |
+|----|----|
+| `loan_status` | Estado actual o final del préstamo. |
+| `issue_d` | Mes y año en que se financió el préstamo. |
+| `loan_amnt` | Monto del préstamo registrado. |
+| `term` | Plazo de pago del préstamo, expresado en meses. |
+| `int_rate` | Tasa de interés anual del préstamo, expresada en porcentaje. |
+| `installment` | Cuota mensual que debe pagar el prestatario. |
+| `grade` | Calificación crediticia asignada por LendingClub. |
+| `sub_grade` | Subcategoría de la calificación crediticia. |
+| `emp_length` | Antigüedad laboral declarada por el solicitante. |
+| `home_ownership` | Situación de vivienda del solicitante, como propia, alquilada o hipotecada. |
+| `annual_inc` | Ingreso anual declarado por el solicitante. |
+| `verification_status` | Estado de verificación de los ingresos. |
+| `purpose` | Finalidad declarada del préstamo. |
+| `dti` | Relación entre obligaciones mensuales de deuda e ingresos mensuales, expresada como porcentaje. |
+| `delinq_2yrs` | Número de incidencias de morosidad de 30 días o más en los últimos dos años. |
+| `earliest_cr_line` | Fecha de apertura de la primera línea de crédito registrada. |
+| `inq_last_6mths` | Número de consultas crediticias recientes durante los últimos seis meses. |
+| `open_acc` | Número de cuentas de crédito abiertas. |
+| `pub_rec` | Número de registros públicos desfavorables. |
+| `revol_bal` | Saldo total de crédito revolvente. |
+| `revol_util` | Porcentaje de utilización del crédito revolvente disponible. |
+| `total_acc` | Número total de cuentas de crédito registradas. |
+| `application_type` | Tipo de solicitud: individual o conjunta. |
+| `mort_acc` | Número de cuentas hipotecarias registradas. |
+| `pub_rec_bankruptcies` | Número de registros públicos de bancarrota. |
+
+Adicionalmente, durante el preprocesamiento se genera la variable `incumplimiento`, que representa el resultado binario del préstamo:
+
+- **0:** Préstamo pagado completamente (`Fully Paid`).
+- **1:** Préstamo castigado (`Charged Off`).
+
+Esta variable será utilizada como objetivo de clasificación en la etapa de modelado predictivo.
+
+## B.10 Selección de préstamos con resultado definitivo
+
+Para el primer problema de clasificación se consideran los préstamos pagados completamente y aquellos clasificados como castigados.
+
+Los préstamos activos o con estados todavía no definitivos se excluyen de este subconjunto, pero permanecen en el archivo original.
+
+```{python}
+#| label: seleccion-estados
+
+estados_definitivos = [
+    "Fully Paid",
+    "Charged Off"
+]
+
+df_modelo = df_trabajo.loc[
+    df_trabajo["loan_status"].isin(estados_definitivos)
+].copy()
+
+df_modelo["incumplimiento"] = (
+    df_modelo["loan_status"] == "Charged Off"
+).astype("int8")
+
+print("Registros seleccionados:", len(df_modelo))
+print("Variables:", df_modelo.shape[1])
+
+display(
+    df_modelo["loan_status"]
+    .value_counts()
+    .to_frame("Cantidad")
+)
+```
+
+## B.11 Calidad de las variables seleccionadas
+
+Se vuelve a calcular la proporción de valores faltantes, esta vez únicamente sobre los préstamos con resultado definitivo.
+
+Esto permite identificar qué transformaciones serán necesarias antes del modelado.
+
+```{python}
+#| label: auditoria-modelo
+
+auditoria_modelo = pd.DataFrame({
+    "Tipo": df_modelo.dtypes.astype(str),
+    "Nulos": df_modelo.isna().sum(),
+    "Porcentaje_nulos": (
+        df_modelo.isna().mean() * 100
+    ),
+    "Valores_unicos": df_modelo.nunique(dropna=True)
+})
+
+auditoria_modelo = auditoria_modelo.sort_values(
+    "Porcentaje_nulos",
+    ascending=False
+)
+
+display(auditoria_modelo.round(3))
+```
+
+## B.12 Diagnóstico y estrategias para valores faltantes
+
+Se documenta el tratamiento propuesto para los campos incompletos del subconjunto seleccionado. Los estadísticos de imputación se calcularán únicamente con el conjunto de entrenamiento para evitar fugas de información.
+
+```{python}
+#| label: estrategias-nulos
+
+estrategias_nulos = pd.DataFrame({
+    "Variable": ["emp_length", "mort_acc", "revol_util", "pub_rec_bankruptcies", "dti", "inq_last_6mths"],
+    "Estrategia": [
+        "Categoría No informado", "Mediana de entrenamiento",
+        "Mediana de entrenamiento", "Mediana de entrenamiento",
+        "Mediana de entrenamiento y revisión de negativos",
+        "Mediana de entrenamiento"
+    ],
+    "Justificación": [
+        "La ausencia no equivale a cero años de empleo",
+        "El valor desconocido no implica cero hipotecas",
+        "Se evita asignar arbitrariamente cero",
+        "Se distingue entre ausencia de datos y ausencia de bancarrotas",
+        "Se investigan codificaciones especiales negativas",
+        "Una consulta no informada no equivale a ninguna consulta"
+    ]
+})
+
+display(estrategias_nulos)
+```
+
+## B.13 Transformación de tipos de datos
+
+### B.13.1 Conversión del plazo del préstamo
+
+La variable `term` almacena el plazo del préstamo como texto. Se convierte a un valor numérico expresado en meses.
+
+```{python}
+#| label: transformar-plazo
+
+df_modelo["term_meses"] = pd.to_numeric(
+    df_modelo["term"].str.extract(r"(\d+)")[0],
+    errors="coerce"
+)
+
+print("Distribución del plazo:")
+display(df_modelo["term_meses"].value_counts(dropna=False))
+```
+
+### B.13.2 Conversión de fechas
+
+Se convierten las fechas de emisión del préstamo y apertura de la primera línea de crédito.
+
+A partir de ellas se calcula la antigüedad crediticia aproximada del solicitante al momento de financiarse el préstamo.
+
+```{python}
+#| label: transformar-fechas
+
+df_modelo["fecha_emision"] = pd.to_datetime(
+    df_modelo["issue_d"],
+    format="%b-%Y",
+    errors="coerce"
+)
+
+df_modelo["fecha_primer_credito"] = pd.to_datetime(
+    df_modelo["earliest_cr_line"],
+    format="%b-%Y",
+    errors="coerce"
+)
+
+df_modelo["antiguedad_crediticia_anios"] = (
+    (
+        df_modelo["fecha_emision"] -
+        df_modelo["fecha_primer_credito"]
+    ).dt.days / 365.25
+)
+
+print("Fechas de emisión no reconocidas:",
+      df_modelo["fecha_emision"].isna().sum())
+
+print("Fechas de primer crédito no reconocidas:",
+      df_modelo["fecha_primer_credito"].isna().sum())
+
+print("Antigüedades crediticias negativas:",
+      (df_modelo["antiguedad_crediticia_anios"] < 0).sum())
+
+display(
+    df_modelo[
+        [
+            "fecha_emision",
+            "fecha_primer_credito",
+            "antiguedad_crediticia_anios"
+        ]
+    ].head()
+)
+```
+
+### B.13.3 Antigüedad laboral
+
+La variable `emp_length` contiene categorías como `< 1 year`, `1 year` y `10+ years`.
+
+Para preservar su significado original, se conserva como variable categórica y los valores faltantes se identifican explícitamente.
+
+```{python}
+#| label: transformar-antiguedad-laboral
+
+df_modelo["emp_length_categoria"] = (
+    df_modelo["emp_length"]
+    .fillna("No informado")
+)
+
+display(
+    df_modelo["emp_length_categoria"]
+    .value_counts()
+    .to_frame("Cantidad")
+)
+```
+
+No se modifica la variable original. La nueva columna permite distinguir entre información disponible e información no declarada.
+
+## B.14 Separación de entrenamiento y prueba
+
+Se realiza una división cronológica utilizando la fecha de emisión del préstamo.
+
+Esta estrategia permite evaluar el modelo sobre préstamos originados después de aquellos utilizados para entrenarlo.
+
+```{python}
+#| label: division-temporal
+
+df_temporal = df_modelo.dropna(
+    subset=["fecha_emision"]
+).sort_values("fecha_emision").copy()
+
+fechas = df_temporal["fecha_emision"].drop_duplicates().sort_values()
+
+fecha_corte = fechas.iloc[int(len(fechas) * 0.8)]
+
+entrenamiento = df_temporal.loc[
+    df_temporal["fecha_emision"] < fecha_corte
+].copy()
+
+prueba = df_temporal.loc[
+    df_temporal["fecha_emision"] >= fecha_corte
+].copy()
+
+print("Fecha de corte:", fecha_corte)
+print("Entrenamiento:", len(entrenamiento))
+print("Prueba:", len(prueba))
+
+print(
+    "Porcentaje de incumplimiento en entrenamiento:",
+    round(entrenamiento["incumplimiento"].mean() * 100, 2),
+    "%"
+)
+
+print(
+    "Porcentaje de incumplimiento en prueba:",
+    round(prueba["incumplimiento"].mean() * 100, 2),
+    "%"
+)
+```
+
+La separación se realiza antes de calcular las estadísticas de imputación para evitar que la información del conjunto de prueba influya en el entrenamiento.
+
+## B.15 Imputación de valores faltantes
+
+Se utiliza la mediana del conjunto de entrenamiento para completar los valores faltantes de determinadas variables numéricas.
+
+La mediana es una medida robusta frente a valores extremos.
+
+```{python}
+#| label: imputacion-numerica
+
+from sklearn.impute import SimpleImputer
+
+columnas_imputacion = [
+    "mort_acc",
+    "revol_util",
+    "pub_rec_bankruptcies",
+    "dti",
+    "inq_last_6mths"
+]
+
+imputador = SimpleImputer(strategy="median")
+
+entrenamiento[columnas_imputacion] = (
+    imputador.fit_transform(
+        entrenamiento[columnas_imputacion]
+    )
+)
+
+prueba[columnas_imputacion] = (
+    imputador.transform(
+        prueba[columnas_imputacion]
+    )
+)
+
+valores_imputacion = pd.DataFrame({
+    "Variable": columnas_imputacion,
+    "Mediana_entrenamiento": imputador.statistics_
+})
+
+display(valores_imputacion)
+
+print("Nulos después de imputar:")
+display(
+    entrenamiento[columnas_imputacion]
+    .isna()
+    .sum()
+    .to_frame("Entrenamiento")
+)
+```
+
+El imputador aprende las medianas exclusivamente del conjunto de entrenamiento y aplica esos mismos valores al conjunto de prueba.
+
+Esto evita utilizar información del conjunto de evaluación para preparar los datos de entrenamiento.
+
+## B.16 Análisis de valores atípicos
+
+Los valores atípicos son observaciones que se alejan considerablemente del comportamiento general de una variable.
+
+En el contexto financiero, un valor extremo no necesariamente representa un error. Por ello, primero se estudiarán las distribuciones y los rangos de las variables numéricas seleccionadas.
+
+### B.16.1 Estadísticas descriptivas y percentiles
+
+Se calculan percentiles para identificar la concentración de los datos y la magnitud de los valores extremos.
+
+```{python}
+#| label: percentiles-financieros
+
+variables_atipicas = [
+    "annual_inc",
+    "dti",
+    "loan_amnt",
+    "int_rate",
+    "installment",
+    "revol_util"
+]
+
+percentiles = entrenamiento[
+    variables_atipicas
+].describe(
+    percentiles=[0.01, 0.05, 0.25, 0.5,
+                 0.75, 0.95, 0.99]
+).T
+
+display(percentiles.round(2))
+```
+
+### B.16.2 Detección mediante el rango intercuartílico
+
+Se utiliza el rango intercuartílico (IQR) como criterio exploratorio para identificar valores alejados de la distribución central.
+
+Este procedimiento no implica eliminar automáticamente las observaciones detectadas.
+
+```{python}
+#| label: deteccion-iqr
+
+resultados_iqr = []
+
+for variable in variables_atipicas:
+    serie = entrenamiento[variable].dropna()
+
+    q1 = serie.quantile(0.25)
+    q3 = serie.quantile(0.75)
+
+    iqr = q3 - q1
+
+    limite_inferior = q1 - 1.5 * iqr
+    limite_superior = q3 + 1.5 * iqr
+
+    atipicos = (
+        (serie < limite_inferior) |
+        (serie > limite_superior)
+    )
+
+    resultados_iqr.append({
+        "Variable": variable,
+        "Limite_inferior": limite_inferior,
+        "Limite_superior": limite_superior,
+        "Cantidad_atipicos": int(atipicos.sum()),
+        "Porcentaje_atipicos": (
+            atipicos.mean() * 100
+        )
+    })
+
+tabla_iqr = pd.DataFrame(resultados_iqr)
+
+display(tabla_iqr.round(2))
+```
+
+### B.16.3 Revisión de valores potencialmente inválidos
+
+Se examinan valores negativos y rangos que requieren una interpretación específica.
+
+```{python}
+#| label: revision-inconsistencias
+
+revisiones = {
+    "annual_inc negativo":
+        (entrenamiento["annual_inc"] < 0).sum(),
+
+    "annual_inc igual a cero":
+        (entrenamiento["annual_inc"] == 0).sum(),
+
+    "dti negativo":
+        (entrenamiento["dti"] < 0).sum(),
+
+    "dti mayor a 100":
+        (entrenamiento["dti"] > 100).sum(),
+
+    "revol_util negativo":
+        (entrenamiento["revol_util"] < 0).sum(),
+
+    "revol_util mayor a 100":
+        (entrenamiento["revol_util"] > 100).sum(),
+
+    "loan_amnt no positivo":
+        (entrenamiento["loan_amnt"] <= 0).sum()
+}
+
+display(
+    pd.DataFrame(
+        revisiones.items(),
+        columns=["Condicion", "Cantidad"]
+    )
+)
+```
+
+Los valores detectados deberán revisarse antes de establecer reglas de corrección, transformación o exclusión.
+
+## B.17 Evaluación de valores extremos
+
+Antes de modificar los valores atípicos, se examinan las observaciones más extremas para determinar si corresponden a valores plausibles, casos especiales o posibles errores de registro.
+
+### B.17.1 Observaciones extremas
+
+```{python}
+#| label: revision-extremos
+
+variables_revision = [
+    "annual_inc",
+    "dti",
+    "revol_util"
+]
+
+columnas_contexto = [
+    "loan_amnt",
+    "annual_inc",
+    "dti",
+    "revol_util",
+    "int_rate",
+    "incumplimiento"
+]
+
+for variable in variables_revision:
+    print(f"\nValores más altos de {variable}")
+
+    display(
+        entrenamiento.nlargest(
+            10, variable
+        )[columnas_contexto]
+    )
+```
+
+### B.17.2 Frecuencia de casos especiales
+
+Se cuantifican las observaciones que requieren una revisión adicional, sin modificar todavía sus valores.
+
+```{python}
+#| label: frecuencia-casos-especiales
+
+condiciones = {
+    "Ingreso anual igual a cero":
+        entrenamiento["annual_inc"] == 0,
+
+    "DTI negativo":
+        entrenamiento["dti"] < 0,
+
+    "DTI superior a 100":
+        entrenamiento["dti"] > 100,
+
+    "Utilización revolvente superior a 100":
+        entrenamiento["revol_util"] > 100
+}
+
+resultados = []
+
+for nombre, mascara in condiciones.items():
+    resultados.append({
+        "Condicion": nombre,
+        "Registros": int(mascara.sum()),
+        "Porcentaje": round(
+            mascara.mean() * 100, 4
+        )
+    })
+
+display(pd.DataFrame(resultados))
+```
+
+## B.18 Tratamiento de valores atípicos y transformaciones
+
+Las secciones anteriores identificaron observaciones extremas mediante percentiles, IQR y revisión de casos individuales. No se eliminarán automáticamente valores altos de ingreso, deuda-ingreso o utilización revolvente: un valor atípico estadístico no implica necesariamente un error de registro.
+
+Se mantienen intactas las columnas originales del archivo fuente. Las modificaciones se aplican sobre los subconjuntos `entrenamiento` y `prueba`, previamente separados de manera cronológica.
+
+### B.18.1 Registro de decisiones
+
+| Variable | Decisión | Justificación |
+|----|----|----|
+| `annual_inc` | Conservar y generar `log_annual_inc` | Los ingresos elevados pueden ser válidos; la transformación reduce la asimetría. |
+| `dti` | Tratar valores negativos como faltantes e imputar con la mediana válida del entrenamiento | Un DTI negativo requiere tratamiento diferenciado; los valores positivos altos se conservan. |
+| `revol_util` | Conservar valores superiores a 100 | Pueden reflejar saldos que exceden el crédito disponible. |
+| `loan_amnt`, `int_rate`, `installment` | Conservar valores observados | El criterio IQR por sí solo no demuestra errores. |
+
+### B.18.2 Identificación y tratamiento de DTI negativo
+
+Se registra un indicador de valores negativos antes de reemplazarlos. La mediana de referencia se obtiene **solo de valores no negativos del entrenamiento** y se aplica a ambos subconjuntos.
+
+```{python}
+#| label: tratamiento-dti
+
+for conjunto in (entrenamiento, prueba):
+    conjunto["dti_negativo_original"] = (
+        conjunto["dti"] < 0
+    ).astype("int8")
+
+mediana_dti_valida = entrenamiento.loc[
+    entrenamiento["dti"] >= 0, "dti"
+].median()
+
+if pd.isna(mediana_dti_valida):
+    raise ValueError("No hay valores válidos para calcular la mediana de DTI")
+
+resumen_dti = []
+for nombre, conjunto in (("Entrenamiento", entrenamiento), ("Prueba", prueba)):
+    negativos = int((conjunto["dti"] < 0).sum())
+    conjunto.loc[conjunto["dti"] < 0, "dti"] = np.nan
+    conjunto["dti"] = conjunto["dti"].fillna(mediana_dti_valida)
+    resumen_dti.append({
+        "Conjunto": nombre,
+        "Negativos_tratados": negativos,
+        "Nulos_restantes": int(conjunto["dti"].isna().sum())
+    })
+
+print("Mediana válida de DTI (entrenamiento):", round(mediana_dti_valida, 2))
+display(pd.DataFrame(resumen_dti))
+```
+
+**Nota metodológica:** en B.15 ya se habían imputado los DTI originalmente faltantes. Aquí se corrigen exclusivamente los valores negativos que aún permanecían. Para un pipeline de modelado definitivo, ambos tratamientos se integrarán en un único proceso ajustado con entrenamiento.
+
+### B.18.3 Transformación logarítmica del ingreso anual
+
+El ingreso anual presenta una distribución asimétrica. Se crea una característica transformada mediante `log1p(x) = ln(1 + x)`, que admite ingresos iguales a cero. Los valores originales se conservan para facilitar la interpretación económica.
+
+```{python}
+#| label: transformacion-ingresos
+
+for nombre, conjunto in (("Entrenamiento", entrenamiento), ("Prueba", prueba)):
+    negativos = int((conjunto["annual_inc"] < 0).sum())
+    faltantes = int(conjunto["annual_inc"].isna().sum())
+    print(f"{nombre}: ingresos negativos={negativos}, faltantes={faltantes}")
+    if negativos:
+        raise ValueError("Existen ingresos negativos; revisar antes de aplicar log1p")
+    conjunto["log_annual_inc"] = np.log1p(conjunto["annual_inc"])
+
+print("Resumen de ingresos originales y transformados (entrenamiento):")
+display(entrenamiento[["annual_inc", "log_annual_inc"]].describe().round(3))
+```
+
+### B.18.4 Comparación visual de distribuciones
+
+Para evitar graficar más de un millón de puntos, se utiliza una muestra reproducible del entrenamiento. Esta muestra se emplea únicamente para visualización, no para calcular estadísticas de transformación.
+
+```{python}
+#| label: grafico-ingresos-transformados
+#| fig-cap: "Ingreso anual original y transformación logarítmica en una muestra del entrenamiento"
+
+muestra_ingresos = entrenamiento[["annual_inc", "log_annual_inc"]].dropna()
+muestra_ingresos = muestra_ingresos.sample(
+    n=min(50000, len(muestra_ingresos)), random_state=42
+)
+
+fig, ejes = plt.subplots(1, 2, figsize=(12, 4))
+sns.histplot(muestra_ingresos["annual_inc"], bins=60, ax=ejes[0])
+ejes[0].set_title("Ingreso anual original")
+ejes[0].set_xlabel("Ingreso anual (USD)")
+sns.histplot(muestra_ingresos["log_annual_inc"], bins=60, ax=ejes[1])
+ejes[1].set_title("Ingreso anual transformado")
+ejes[1].set_xlabel("ln(1 + ingreso anual)")
+plt.tight_layout()
+plt.show()
+```
+
+### B.18.5 Validación posterior al tratamiento
+
+Se comprueba que el número de observaciones no cambió, que no quedaron DTI negativos y que las transformaciones no introdujeron valores infinitos. También se comprueba la cantidad de valores faltantes que permanece en las columnas nuevas.
+
+```{python}
+#| label: validacion-tratamientos
+
+validaciones = []
+for nombre, conjunto in (("Entrenamiento", entrenamiento), ("Prueba", prueba)):
+    validaciones.append({
+        "Conjunto": nombre,
+        "Registros": len(conjunto),
+        "DTI_negativos": int((conjunto["dti"] < 0).sum()),
+        "DTI_nulos": int(conjunto["dti"].isna().sum()),
+        "Ingreso_nulos": int(conjunto["annual_inc"].isna().sum()),
+        "Log_ingreso_nulos": int(conjunto["log_annual_inc"].isna().sum()),
+        "Log_ingreso_infinitos": int(np.isinf(conjunto["log_annual_inc"]).sum())
+    })
+
+tabla_validacion = pd.DataFrame(validaciones)
+display(tabla_validacion)
+
+assert tabla_validacion["DTI_negativos"].eq(0).all()
+assert tabla_validacion["DTI_nulos"].eq(0).all()
+assert tabla_validacion["Log_ingreso_infinitos"].eq(0).all()
+assert len(entrenamiento) + len(prueba) == len(df_temporal)
+```
+
+### B.18.6 Conclusiones del tratamiento
+
+Se conservaron los valores extremos financieramente plausibles sin aplicar eliminación masiva de registros ni recortes automáticos por IQR. Los DTI negativos se trataron como información no válida para esta variable y se sustituyeron por la mediana válida del entrenamiento, conservando un indicador de su presencia. El ingreso anual se transformó logarítmicamente en una nueva columna, sin sobrescribir el dato original.
+
+Estas decisiones son preliminares para el análisis predictivo: todavía se requiere codificar las variables categóricas, revisar las características finales y preparar un pipeline que reproduzca las transformaciones durante la validación cruzada y la evaluación del modelo.
+
+## B.19 Validación final de la calidad
+
+Se verifica la integridad de las muestras, la variable objetivo y las características transformadas. Se distinguen los campos originales conservados para trazabilidad de las características que utilizarán los modelos.
+
+```{python}
+#| label: calidad-final
+
+campos_preparados = [
+    "incumplimiento", "loan_amnt", "int_rate", "installment", "annual_inc",
+    "log_annual_inc", "dti", "revol_util", "term_meses",
+    "antiguedad_crediticia_anios", "emp_length_categoria",
+    "dti_negativo_original"
+]
+resumen_final = []
+for nombre, datos in (("Entrenamiento", entrenamiento), ("Prueba", prueba)):
+    resumen_final.append({
+        "Conjunto": nombre,
+        "Registros": len(datos),
+        "Columnas": datos.shape[1],
+        "Incumplimiento_%": round(datos["incumplimiento"].mean() * 100, 2),
+        "Nulos_en_campos_clave": int(datos[campos_preparados].isna().sum().sum()),
+        "DTI_negativos": int((datos["dti"] < 0).sum())
+    })
+    assert datos["incumplimiento"].isin([0, 1]).all()
+    assert datos["fecha_emision"].notna().all()
+    assert (datos["dti"] >= 0).all()
+    assert np.isfinite(datos["log_annual_inc"]).all()
+
+assert entrenamiento["fecha_emision"].max() < prueba["fecha_emision"].min()
+assert len(entrenamiento) + len(prueba) == len(df_temporal)
+display(pd.DataFrame(resumen_final))
+```
+
+## B.20 Exportación de datos para las siguientes fases
+
+Se exportan dos representaciones: **prepared** contiene las transformaciones exploratorias de B.15–B.18 y se utiliza para el análisis descriptivo; **raw_split** conserva las columnas derivadas determinísticamente, pero no aplica medianas aprendidas ni transformaciones ajustadas. Esta última representación alimentará los pipelines del modelado para que cada ajuste de entrenamiento y validación calcule sus propias estadísticas.
+
+```{python}
+#| label: exportacion-datos
+
+carpeta_procesados = Path("../data/processed")
+carpeta_procesados.mkdir(parents=True, exist_ok=True)
+
+# Conservar índices originales: permiten verificar correspondencia entre versiones.
+train_raw = df_temporal.loc[entrenamiento.index].copy()
+test_raw = df_temporal.loc[prueba.index].copy()
+
+# Regla determinística, sin utilizar estadísticas de prueba.
+for datos in (train_raw, test_raw):
+    datos["dti_negativo_original"] = (datos["dti"] < 0).astype("int8")
+    datos.loc[datos["dti"] < 0, "dti"] = np.nan
+
+archivos = {
+    "train_prepared.parquet": entrenamiento,
+    "test_prepared.parquet": prueba,
+    "train_raw_split.parquet": train_raw,
+    "test_raw_split.parquet": test_raw,
+}
+for nombre, datos in archivos.items():
+    destino = carpeta_procesados / nombre
+    datos.to_parquet(destino, index=True)
+    print(f"Guardado: {destino} | {len(datos):,} registros")
+
+# Contrato de columnas para modelado: se excluye loan_status (origen del objetivo)
+# y se evita usar fechas y cadenas originales directamente como predictores.
+import json
+contrato = {
+    "objetivo": "incumplimiento",
+    "fecha_corte": str(fecha_corte.date()),
+    "registros_entrenamiento": len(entrenamiento),
+    "registros_prueba": len(prueba),
+    "nota": "Solo préstamos Fully Paid/Charged Off; posible sesgo por maduración de cohortes",
+    "archivos": list(archivos)
+}
+(carpeta_procesados / "metadata.json").write_text(
+    json.dumps(contrato, ensure_ascii=False, indent=2), encoding="utf-8"
+)
+```
+
+**Dependencia:** para exportar Parquet se necesita `pyarrow` (instalar con `pip install pyarrow` si no está disponible). No se altera `data/raw/loan.csv`.
+
+## B.21 Conclusiones y limitaciones de la limpieza
+
+Se realizó una auditoría del dataset original, se seleccionaron préstamos con resultado definitivo, se construyó la variable objetivo y se dividió cronológicamente la muestra. Las transformaciones y los criterios de imputación se documentaron, y se generaron archivos reutilizables para las fases posteriores.
+
+**Limitación importante:** al seleccionar solo préstamos `Fully Paid` y `Charged Off`, los préstamos recientes que todavía están activos quedan excluidos. Esto puede generar **sesgo de selección por maduración** y afectar la comparación temporal de tasas de incumplimiento. Las conclusiones predictivas deberán limitarse a la población observada y evaluar este sesgo explícitamente.
+
+En el modelado se volverán a aprender las imputaciones y la codificación categórica dentro de pipelines. La prueba temporal se mantendrá reservada para una evaluación final, sin utilizarla para seleccionar algoritmos ni ajustar hiperparámetros.

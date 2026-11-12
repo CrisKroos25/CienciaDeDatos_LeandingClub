@@ -1,0 +1,134 @@
+---
+title: "Análisis de Riesgo Crediticio - LendingClub"
+subtitle: "Fase 1: Comprensión, carga y exploración inicial"
+author: "Cristian Guzman"
+lang: es
+format:
+  html:
+    toc: true
+    code-fold: true
+  pdf:
+    toc: true
+jupyter: lendingclub-python
+---
+
+# Introducción
+
+El presente proyecto tiene como finalidad analizar información histórica de préstamos personales para identificar patrones financieros y crediticios asociados con el incumplimiento de pagos.
+
+Se utilizarán técnicas estadísticas, análisis exploratorio de datos y modelos predictivos.
+
+# Parte A: Comprensión y exploración inicial
+
+## A.1 Importación de librerías
+
+```{python}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+sns.set_theme(style="whitegrid")
+```
+
+## A.2 Carga del dataset
+
+```{python}
+from pathlib import Path
+
+ruta = Path("../data/raw/loan.csv")
+
+df = pd.read_csv(ruta, low_memory=False)
+
+print("Dataset cargado correctamente")
+print("Filas:", df.shape[0])
+print("Columnas:", df.shape[1])
+```
+
+## A.3 Primeros registros
+
+```{python}
+display(df.head(10))
+```
+
+## A.4 Tipos de datos
+
+```{python}
+tipos = df.dtypes.value_counts()
+
+display(tipos.to_frame("Cantidad"))
+
+display(
+    df.dtypes.to_frame("Tipo de dato")
+)
+```
+
+## A.5 Valores faltantes
+
+```{python}
+nulos = pd.DataFrame({
+    "Nulos": df.isna().sum(),
+    "Porcentaje": df.isna().mean() * 100
+})
+
+nulos = nulos.sort_values(
+    "Porcentaje", ascending=False
+)
+
+display(nulos.head(30).round(2))
+```
+
+## A.6 Registros duplicados
+
+```{python}
+print("Duplicados:", df.duplicated().sum())
+```
+
+## A.7 Estadísticas descriptivas iniciales
+
+```{python}
+display(df.describe().round(2))
+```
+
+## A.8 Distribución de la variable objetivo
+
+```{python}
+frecuencias = df["loan_status"].value_counts(
+    dropna=False
+)
+
+porcentajes = df["loan_status"].value_counts(
+    normalize=True,
+    dropna=False
+) * 100
+
+tabla = pd.DataFrame({
+    "Frecuencia": frecuencias,
+    "Porcentaje": porcentajes
+})
+
+display(tabla.round(2))
+```
+
+# Interpretación de resultados
+
+El conjunto de datos de LendingClub contiene 2,260,668 registros y 145 variables , lo que proporciona una base amplia para el análisis de características financieras, comportamiento crediticio y riesgo de incumplimiento.
+
+Se identificaron 109 variables numéricas y 36 variables de texto. Sin embargo, algunas variables requieren transformaciones posteriores, especialmente aquellas que representan fechas, categorías y plazos de préstamos.
+
+El análisis de valores faltantes permitió identificar tres columnas completamente vacías: id , member_id y url . Asimismo, diversas variables relacionadas con dificultades económicas, acuerdos de deuda y segundos solicitantes presentan porcentajes elevados de valores ausentes. Esto puede explicarse por la naturaleza específica de los eventos que representan, por lo que su tratamiento debe considerar el significado de cada variable.
+
+No se detectaron registros completamente duplicados.
+
+Respecto a la variable loan_status , el 46.09 % de los préstamos aparece como pagado completamente, el 40.68 % como activo y el 11.57 % como castigado por incumplimiento. Esta distribución demuestra la importancia de distinguir los préstamos con resultados definitivos de aquellos que todavía se encuentran en proceso de pago.
+
+Las estadísticas descriptivas también evidencian posibles valores atípicos, especialmente en los ingresos anuales y la relación deuda-ingreso. Estas observaciones deberán estudiarse antes de realizar transformaciones.
+
+# Conclusiones preliminares
+
+- El dataset cuenta con un volumen y una variedad de variables adecuados para desarrollar análisis descriptivos, diagnósticos y predictivos.
+- La presencia de columnas completamente vacías y otras con porcentajes elevados de valores faltantes hace necesaria una estrategia de limpieza fundamentada en el significado de las variables.
+- No se identificaron filas completamente duplicadas, aunque todavía es necesario evaluar la consistencia y validez de los registros.
+- La variable loan_status permite plantear un problema de clasificación predictiva. Para un modelo inicial se propone trabajar con préstamos pagados completamente y préstamos castigados, considerando las limitaciones derivadas de excluir los préstamos todavía activos.
+- Los valores extremos detectados en algunas variables financieras justifican realizar una fase específica de identificación y tratamiento de valores atípicos.
+- Antes del modelado predictivo será necesario seleccionar las variables disponibles al momento de otorgar el préstamo para evitar la utilización de información posterior al resultado que se pretende predecir.
