@@ -1,0 +1,38 @@
+{
+  "modelo": "Random_Forest",
+  "caracteristicas": [
+    "loan_amnt",
+    "int_rate",
+    "installment",
+    "dti",
+    "delinq_2yrs",
+    "inq_last_6mths",
+    "open_acc",
+    "pub_rec",
+    "revol_bal",
+    "revol_util",
+    "total_acc",
+    "mort_acc",
+    "pub_rec_bankruptcies",
+    "term_meses",
+    "antiguedad_crediticia_anios",
+    "dti_negativo_original",
+    "annual_inc",
+    "grade",
+    "sub_grade",
+    "emp_length_categoria",
+    "home_ownership",
+    "verification_status",
+    "purpose",
+    "application_type"
+  ],
+  "fecha_inicio_validacion": "2016-01-01",
+  "criterio_seleccion": "PR_AUC",
+  "filas_ajuste_final": 150000,
+  "filas_ajuste_validacion_por_modelo": 150000,
+  "filas_validacion": 203455,
+  "nota_dti": "DTI negativos convertidos a NaN en la fase 02; mediana aprendida dentro del pipeline",
+  "versiones": {
+    "sklearn": "1.9.1"
+  }
+}

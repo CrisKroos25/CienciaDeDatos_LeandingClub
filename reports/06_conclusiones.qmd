@@ -1,0 +1,105 @@
+---
+title: "Análisis de Riesgo Crediticio - LendingClub"
+author: "Cristian Guzman"
+lang: es
+format:
+  html:
+    toc: true
+    code-fold: true
+    number-sections: false
+  pdf:
+    toc: true
+    number-sections: false
+jupyter: lendingclub-python
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+# Parte F: Conclusiones y recomendaciones
+
+## F.1 Propósito
+
+Integrar los hallazgos de comprensión, limpieza, exploración, modelado y evaluación. Los resultados numéricos se cargarán desde los archivos generados; las conclusiones interpretativas requieren revisión humana tras ejecutar todas las fases.
+
+## F.2 Resumen reproducible de resultados
+
+```{python}
+#| label: resumen-resultados
+from pathlib import Path
+import json
+import pandas as pd
+base = Path("../outputs")
+meta = json.loads(Path("../data/processed/metadata.json").read_text(encoding="utf-8"))
+modelo = json.loads((base / "models/modelo_metadata.json").read_text(encoding="utf-8"))
+validacion = pd.read_csv(base / "models/comparacion_validacion.csv")
+prueba = pd.read_csv(base / "tables/metricas_prueba.csv")
+print("Corte temporal:", meta["fecha_corte"])
+print("Muestras entrenamiento / prueba:", meta["registros_entrenamiento"], "/", meta["registros_prueba"])
+print("Modelo seleccionado:", modelo["modelo"])
+print("Criterio de selección:", modelo["criterio_seleccion"])
+print("Resultados en validación:")
+display(validacion.round(4))
+print("Resultados en prueba:")
+display(prueba.round(4))
+```
+
+## F.3 Hallazgos del análisis
+
+El análisis exploratorio permitió identificar patrones relevantes relacionados con el incumplimiento crediticio. En el conjunto de entrenamiento, aproximadamente el 19.59% de los préstamos presentaron incumplimiento, mientras que el 80.41% fueron pagados completamente.
+
+Se observó una relación creciente entre la calificación crediticia asignada por LendingClub y la proporción de préstamos incumplidos. Los préstamos con calificación A presentaron una tasa de incumplimiento del 6.01%, mientras que los de calificación G alcanzaron el 49.73%.
+
+El plazo del préstamo también mostró diferencias importantes. Los préstamos de 36 meses registraron una tasa de incumplimiento del 15.27%, frente al 33.14% de los préstamos de 60 meses.
+
+Asimismo, los préstamos castigados presentaron una tasa de interés mediana del 14.99%, superior al 12.29% de los préstamos pagados. También mostraron una relación deuda-ingreso mediana mayor, de 19.80 frente a 17.10.
+
+Estos resultados muestran asociaciones entre determinadas características financieras y el incumplimiento crediticio, sin demostrar relaciones de causalidad.
+
+## F.4 Evaluación del modelo
+
+Se compararon dos algoritmos de aprendizaje supervisado: regresión logística y Random Forest. Ambos fueron entrenados con una muestra común de 150,000 préstamos y evaluados mediante una división cronológica de los datos.
+
+Random Forest fue seleccionado porque obtuvo la mayor PR-AUC durante la validación, con un valor de 0.4311, ligeramente superior al 0.4289 alcanzado por la regresión logística. La diferencia fue pequeña, por lo que no puede afirmarse que exista una superioridad estadísticamente demostrada.
+
+Posteriormente, el modelo seleccionado fue evaluado sobre 277,326 préstamos reservados para prueba. Se obtuvo un ROC-AUC de 0.6974, una PR-AUC de 0.3761 y un Brier Score de 0.1568.
+
+En comparación con la validación, el ROC-AUC disminuyó de 0.7106 a 0.6974 y la PR-AUC de 0.4311 a 0.3761. Esto evidencia una reducción de la capacidad discriminativa en el período de prueba.
+
+Con un umbral de clasificación de 0.50, el recall para los préstamos castigados fue de aproximadamente 0.05. Esto indica que el modelo identificó solamente alrededor del 5% de los incumplimientos reales mediante ese criterio de clasificación.
+
+Sin embargo, la evaluación por deciles mostró que el modelo logró diferenciar grupos con distintos niveles de riesgo. El decil de menor riesgo presentó una tasa real de incumplimiento del 4.39%, mientras que el decil de mayor riesgo alcanzó el 44.60%.
+
+Por tanto, el modelo mostró mayor utilidad potencial para ordenar préstamos según su riesgo relativo que para identificar automáticamente todos los incumplimientos mediante el umbral de 0.50.
+
+## F.5 Limitaciones
+
+- Se incluyen únicamente préstamos con estados definitivos; existe posible sesgo de selección por maduración.
+- Las calificaciones, tasas y cuotas provienen de la evaluación crediticia original del prestamista y pueden aportar señales de sus políticas previas.
+- Los datos corresponden a un contexto histórico; la aplicación a nuevas cohortes, instituciones o países requiere validación adicional.
+- El modelo identifica asociaciones predictivas, no relaciones causales.
+- El umbral de clasificación no ha sido optimizado según costos económicos reales de errores.
+
+## F.6 Recomendaciones
+
+1.  Validar el modelo sobre cohortes adicionales con periodos de observación comparables.
+2.  Comparar un modelo que excluya `grade`, `sub_grade`, `int_rate` e `installment` para evaluar cuánto depende de la evaluación original de LendingClub.
+3.  Definir el costo de falsos positivos y falsos negativos antes de fijar un umbral operativo.
+4.  Examinar calibración y estabilidad por grupos relevantes antes de considerar cualquier aplicación real.
+
+## F.7 Conclusión final
+
+El proyecto permitió desarrollar un proceso de análisis de riesgo crediticio utilizando datos históricos de LendingClub, desde la preparación y exploración de los datos hasta el entrenamiento y la evaluación de modelos predictivos.
+
+De un conjunto inicial de 2,260,668 registros, se seleccionaron 1,303,607 préstamos con estados definitivos conocidos. Estos se dividieron cronológicamente en 1,026,281 registros de entrenamiento y 277,326 de prueba.
+
+El análisis exploratorio identificó asociaciones entre el incumplimiento y características como la calificación crediticia, la tasa de interés, el plazo del préstamo y la relación deuda-ingreso.
+
+En la etapa de modelado se compararon la regresión logística y Random Forest, seleccionándose este último según el criterio de PR-AUC. En la evaluación final obtuvo un ROC-AUC de 0.6974 y una PR-AUC de 0.3761, demostrando una capacidad moderada para distinguir entre préstamos pagados y castigados.
+
+Aunque el modelo permitió diferenciar grupos de mayor y menor riesgo, presentó una capacidad limitada para detectar incumplimientos utilizando el umbral de clasificación de 0.50.
+
+Se concluye que los modelos de aprendizaje automático pueden contribuir al análisis y priorización del riesgo crediticio. No obstante, los resultados obtenidos deben considerarse una línea base académica y no constituyen evidencia suficiente para implementar un sistema autónomo de aprobación o rechazo de préstamos.
+
+Como trabajo futuro, se recomienda ampliar la validación temporal, estudiar diferentes umbrales de clasificación y evaluar modelos que dependan menos de las calificaciones crediticias originales del prestamista.
